@@ -195,13 +195,24 @@ export async function discoverAndVerifyGeminiKey(
         if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID')) {
           return {
             ok: false,
-            error: 'المفتاح غير صالح. يرجى التأكد من نسخه بدقة من Google AI Studio.',
+            error: 'مفتاح API غير صالح. يرجى التأكد من نسخه بدقة من Google AI Studio.',
           };
         }
-        lastError = msg;
+        if (
+          msg.includes('Generative Language API has not been used') ||
+          msg.includes('disabled') ||
+          msg.includes('PERMISSION_DENIED') ||
+          msg.includes('blocked')
+        ) {
+          return {
+            ok: false,
+            error: 'خدمة Generative Language API غير مفعلة لهذا المفتاح. يرجى تفعيلها من Google Cloud أو إنشاء مفتاح جديد من Google AI Studio.',
+          };
+        }
+        if (!lastError) lastError = msg;
       }
     } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
+      if (!lastError) lastError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -234,12 +245,25 @@ export async function discoverAndVerifyGeminiKey(
         if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID')) {
           return {
             ok: false,
-            error: 'المفتاح غير صالح. يرجى التأكد من نسخه بدقة من Google AI Studio.',
+            error: 'مفتاح API غير صالح. يرجى التأكد من نسخه بدقة من Google AI Studio.',
           };
         }
-        lastError = msg;
+        if (
+          msg.includes('Generative Language API') ||
+          msg.includes('PERMISSION_DENIED') ||
+          msg.includes('blocked') ||
+          msg.includes('disabled')
+        ) {
+          return {
+            ok: false,
+            error: 'خدمة Generative Language API غير مفعلة لهذا المفتاح في مشروع Google Cloud.',
+          };
+        }
+        if (!lastError || lastError.startsWith('HTTP')) {
+          lastError = msg;
+        }
       } catch (err) {
-        lastError = err instanceof Error ? err.message : String(err);
+        if (!lastError) lastError = err instanceof Error ? err.message : String(err);
       }
     }
   }

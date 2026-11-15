@@ -227,21 +227,53 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
             </div>
           </div>
 
-          {/* AI Studio Link */}
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
-            <span className="flex items-center gap-1 text-[11px]">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              {isAr ? 'يتم حفظ المفتاح محلياً في متصفحك فقط' : 'Key saved locally in your browser'}
-            </span>
-            <a
-              href="https://aistudio.google.com/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-            >
-              <span>{isAr ? 'احصل على مفتاح مجاني' : 'Get free API Key'}</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+          {/* AI Studio Link & Direct Helper */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+              <span className="flex items-center gap-1 text-[11px]">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                {isAr ? 'يتم حفظ المفتاح بأمان في متصفحك فقط' : 'Key saved locally in your browser'}
+              </span>
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 hover:underline shrink-0"
+              >
+                <span>{isAr ? 'إنشاء مفتاح مجاني (Google AI Studio)' : 'Get free API Key'}</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-relaxed border-t border-slate-200/60 dark:border-slate-700/60 pt-2">
+              {isAr ? (
+                <>
+                  💡 <strong>ملاحظة هامة:</strong> لضمان عمل المفتاح، يرجى إنشاؤه عبر{' '}
+                  <a
+                    href="https://aistudio.google.com/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-600 dark:text-emerald-400 underline font-semibold"
+                  >
+                    Google AI Studio
+                  </a>{' '}
+                  (خيار <em>Create API key in new project</em>) حيث تكون صلاحيات نماذج Gemini مفعلة تلقائياً.
+                </>
+              ) : (
+                <>
+                  💡 <strong>Tip:</strong> Create your key via{' '}
+                  <a
+                    href="https://aistudio.google.com/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-600 dark:text-emerald-400 underline font-semibold"
+                  >
+                    Google AI Studio
+                  </a>{' '}
+                  with &quot;Create API key in new project&quot; where Gemini model access is pre-enabled.
+                </>
+              )}
+            </p>
           </div>
 
           {/* Status Message */}
