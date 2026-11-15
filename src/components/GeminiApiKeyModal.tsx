@@ -17,6 +17,8 @@ import {
   getStoredGeminiApiKey,
   setStoredGeminiApiKey,
   hasGeminiApiKey,
+  discoverAndVerifyGeminiKey,
+  getStoredGeminiActiveModel,
 } from '../services/geminiService';
 import { Language } from '../types/agro';
 
@@ -40,10 +42,20 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setApiKey(getStoredGeminiApiKey());
-      setTestStatus('idle');
-      setStatusMessage('');
+      const activeModel = getStoredGeminiActiveModel();
+      if (hasGeminiApiKey()) {
+        setTestStatus('success');
+        setStatusMessage(
+          isAr
+            ? `المفتاح مفعل ويعمل بنجاح مع نموذج جوجل (${activeModel || 'Gemini Live'})`
+            : `API Key active with Google (${activeModel || 'Gemini Live'})`
+        );
+      } else {
+        setTestStatus('idle');
+        setStatusMessage('');
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isAr]);
 
   if (!isOpen) return null;
 
@@ -57,56 +69,28 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
     }
 
     setTestStatus('testing');
-    setStatusMessage(isAr ? 'جاري الاتصال بنماذج Google Gemini (Gemini 4 Hydrogen / 3.8 Flash)...' : 'Connecting to Google Gemini models (Gemini 4 Hydrogen / 3.8 Flash)...');
+    setStatusMessage(
+      isAr
+        ? 'جاري فحص المفتاح والاتصال بنماذج Google AI...'
+        : 'Verifying key and connecting to Google AI models...'
+    );
 
-    const testCandidates = [
-      { id: 'gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
-      { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
-    ];
+    const result = await discoverAndVerifyGeminiKey(trimmed);
 
-    let connectedModelName = '';
-    let lastErrorMsg = '';
-
-    for (const cand of testCandidates) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cand.id}:generateContent?key=${encodeURIComponent(trimmed)}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
-          }),
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (res.ok) {
-          connectedModelName = cand.name;
-          break;
-        } else {
-          const errorData = await res.json().catch(() => ({}));
-          lastErrorMsg = errorData?.error?.message || `HTTP ${res.status}`;
-        }
-      } catch (err) {
-        lastErrorMsg = err instanceof Error ? err.message : String(err);
-      }
-    }
-
-    if (connectedModelName) {
-      setStoredGeminiApiKey(trimmed);
+    if (result.ok && result.model) {
       setTestStatus('success');
       setStatusMessage(
         isAr
-          ? `تم الاتصال بنجاح بأحدث طراز رسمي من جوجل (${connectedModelName}) وتم حفظ المفتاح بأمان!`
-          : `Successfully connected to official Google (${connectedModelName}) and saved key!`
+          ? `تم الاتصال بنجاح وتفعيل نموذج جوجل الرسمي (${result.model}) وحفظ المفتاح بأمان!`
+          : `Successfully connected to official Google (${result.model}) and saved key!`
       );
     } else {
       setTestStatus('error');
+      const err = result.error || '';
       setStatusMessage(
         isAr
-          ? `فشل الاتصال: ${lastErrorMsg}. تأكد من صحة المفتاح من Google AI Studio.`
-          : `Connection failed: ${lastErrorMsg}. Verify your key at Google AI Studio.`
+          ? `فشل الاتصال: ${err}. تأكد من إنشاء المفتاح من Google AI Studio (aistudio.google.com/apikey).`
+          : `Connection failed: ${err}. Ensure your key is from Google AI Studio (aistudio.google.com/apikey).`
       );
     }
   };

@@ -15,6 +15,8 @@ import {
 } from '../utils/advisorToolMapper';
 
 const STORAGE_KEY = 'geoagri_gemini_api_key';
+const STORAGE_MODEL_KEY = 'geoagri_gemini_active_model';
+const STORAGE_VERSION_KEY = 'geoagri_gemini_api_version';
 
 export function getStoredGeminiApiKey(): string {
   try {
@@ -51,8 +53,201 @@ export function setStoredGeminiApiKey(apiKey: string): void {
   }
 }
 
+export function getStoredGeminiActiveModel(): string {
+  try {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(STORAGE_MODEL_KEY) || '';
+    }
+  } catch {
+    // ignore
+  }
+  return '';
+}
+
+export function setStoredGeminiActiveModel(model: string): void {
+  try {
+    if (typeof window !== 'undefined') {
+      if (model) localStorage.setItem(STORAGE_MODEL_KEY, model);
+      else localStorage.removeItem(STORAGE_MODEL_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function getStoredGeminiApiVersion(): 'v1' | 'v1beta' {
+  try {
+    if (typeof window !== 'undefined') {
+      const v = localStorage.getItem(STORAGE_VERSION_KEY);
+      if (v === 'v1' || v === 'v1beta') return v;
+    }
+  } catch {
+    // ignore
+  }
+  return 'v1beta';
+}
+
+export function setStoredGeminiApiVersion(version: 'v1' | 'v1beta'): void {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_VERSION_KEY, version);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export function hasGeminiApiKey(): boolean {
   return getStoredGeminiApiKey().length > 0;
+}
+
+export interface GeminiDiscoveryResult {
+  ok: boolean;
+  model?: string;
+  apiVersion?: 'v1' | 'v1beta';
+  availableModels?: string[];
+  error?: string;
+}
+
+export async function discoverAndVerifyGeminiKey(
+  rawApiKey: string
+): Promise<GeminiDiscoveryResult> {
+  const apiKey = rawApiKey.trim();
+  if (!apiKey) {
+    return { ok: false, error: 'Empty API key' };
+  }
+
+  const apiVersions: Array<'v1beta' | 'v1'> = ['v1beta', 'v1'];
+  const preferredModels = [
+    'gemini-4-hydrogen',
+    'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-pro',
+    'gemini-1.5-pro-latest',
+  ];
+
+  let lastError = '';
+
+  // Step 1: Query ListModels via v1beta and v1 to discover what this key can access
+  for (const version of apiVersions) {
+    try {
+      const listUrl = `https://generativelanguage.googleapis.com/${version}/models?key=${encodeURIComponent(apiKey)}`;
+      const listRes = await fetch(listUrl, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const rawModels: Array<{ name?: string; supportedGenerationMethods?: string[] }> =
+          listData.models || [];
+
+        const supportedModels = rawModels
+          .filter(
+            (m) =>
+              Array.isArray(m.supportedGenerationMethods) &&
+              m.supportedGenerationMethods.includes('generateContent')
+          )
+          .map((m) => (m.name || '').replace(/^models\//, ''))
+          .filter((name) => Boolean(name));
+
+        if (supportedModels.length > 0) {
+          // Find the best preferred model in supportedModels
+          let chosenModel = preferredModels.find((p) => supportedModels.includes(p));
+          if (!chosenModel) {
+            chosenModel =
+              supportedModels.find((m) => m.includes('flash')) ||
+              supportedModels.find((m) => m.startsWith('gemini')) ||
+              supportedModels[0];
+          }
+
+          // Test chosenModel with a lightweight ping
+          const pingUrl = `https://generativelanguage.googleapis.com/${version}/models/${chosenModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          const pingRes = await fetch(pingUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+            }),
+            signal: AbortSignal.timeout(8000),
+          });
+
+          if (pingRes.ok) {
+            setStoredGeminiApiKey(apiKey);
+            setStoredGeminiActiveModel(chosenModel);
+            setStoredGeminiApiVersion(version);
+            return {
+              ok: true,
+              model: chosenModel,
+              apiVersion: version,
+              availableModels: supportedModels,
+            };
+          }
+        }
+      } else {
+        const errJson = await listRes.json().catch(() => ({}));
+        const msg = errJson?.error?.message || `HTTP ${listRes.status}`;
+        if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID')) {
+          return {
+            ok: false,
+            error: 'المفتاح غير صالح. يرجى التأكد من نسخه بدقة من Google AI Studio.',
+          };
+        }
+        lastError = msg;
+      }
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  // Step 2: Fallback direct ping across versions and models
+  for (const version of apiVersions) {
+    for (const model of preferredModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+          }),
+          signal: AbortSignal.timeout(6000),
+        });
+
+        if (res.ok) {
+          setStoredGeminiApiKey(apiKey);
+          setStoredGeminiActiveModel(model);
+          setStoredGeminiApiVersion(version);
+          return {
+            ok: true,
+            model,
+            apiVersion: version,
+          };
+        }
+        const errData = await res.json().catch(() => ({}));
+        const msg = errData?.error?.message || `HTTP ${res.status}`;
+        if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID')) {
+          return {
+            ok: false,
+            error: 'المفتاح غير صالح. يرجى التأكد من نسخه بدقة من Google AI Studio.',
+          };
+        }
+        lastError = msg;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+      }
+    }
+  }
+
+  return {
+    ok: false,
+    error: lastError || 'تعذر الاتصال بخوادم Google Gemini',
+  };
 }
 
 export interface GeminiAdvisorRequest {
@@ -298,17 +493,27 @@ ${JSON.stringify(req.siteInventory, null, 2)}`;
   }
   contents.push({ role: 'user', parts: userParts });
 
-  // Supported Google models in priority order: Gemini 4 Hydrogen -> Gemini 3.8 Flash -> Gemini 2.5 Flash -> Gemini 1.5 Flash
-  const models = [
-    'gemini-4-hydrogen',
-    'gemini-3.8-flash',
-    'gemini-2.5-flash',
-    'gemini-1.5-flash',
-  ];
+  // Supported Google models in priority order, with stored verified model first
+  const storedActive = getStoredGeminiActiveModel();
+  const apiVersion = getStoredGeminiApiVersion();
+  const models = Array.from(
+    new Set(
+      [
+        storedActive,
+        'gemini-4-hydrogen',
+        'gemini-3.8-flash',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro',
+      ].filter((m): m is string => typeof m === 'string' && m.length > 0)
+    )
+  );
 
   for (const model of models) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
       const bodyPayload = {
         contents,
         systemInstruction: {
