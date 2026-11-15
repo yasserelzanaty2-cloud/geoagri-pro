@@ -6,7 +6,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
+  Copy,
   ExternalLink,
   FileDown,
   Globe,
@@ -120,31 +122,12 @@ export default function App() {
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<MainTabId>(initialPersistedState.activeTab || 'atlas');
 
-  // Firebase Google Auth State (Guest-First browsing + optional cloud persistence on sign-in)
-  interface CustomAppUser {
-    uid: string;
-    displayName: string | null;
-    email: string | null;
-    photoURL: string | null;
-    emailVerified?: boolean;
-    isAnonymous?: boolean;
-  }
-
-  const [currentUser, setCurrentUser] = useState<User | CustomAppUser | null>(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('geoagri_saved_user');
-        if (saved) return JSON.parse(saved);
-      }
-    } catch {
-      // ignore
-    }
-    return null;
-  });
+  // Firebase Google Auth State (Official Google Accounts via Firebase Auth)
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [customLoginName, setCustomLoginName] = useState<string>('Yasser Elzanaty');
-  const [customLoginEmail, setCustomLoginEmail] = useState<string>('yasser.elzanaty@geomatrix.org');
+  const [isDomainAuthModalOpen, setIsDomainAuthModalOpen] = useState<boolean>(false);
+  const [domainModalHost, setDomainModalHost] = useState<string>('yasserelzanaty2-cloud.github.io');
+  const [domainCopied, setDomainCopied] = useState<boolean>(false);
 
   // Multi-Zone State: Hydrated immediately from local persistence so page refresh never loses active farm
   const [zones, setZones] = useState<UserStudyZone[]>(initialPersistedState.zones);
@@ -417,36 +400,20 @@ export default function App() {
 
   // Firebase Auth listener + Cloud Firestore / Cloud SQL real-time additive zone subscription
   useEffect(() => {
+    // Purge any stale mock/dummy accounts previously cached in localStorage
+    try {
+      const saved = localStorage.getItem('geoagri_saved_user');
+      if (saved && (saved.includes('user_') || saved.includes('geomatrix.org'))) {
+        localStorage.removeItem('geoagri_saved_user');
+      }
+    } catch {
+      // ignore
+    }
+
     void getGoogleAuthRedirectResult();
     let unsubscribeZones: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setCurrentUser(user);
-        try {
-          localStorage.setItem(
-            'geoagri_saved_user',
-            JSON.stringify({
-              uid: user.uid,
-              displayName: user.displayName,
-              email: user.email,
-              photoURL: user.photoURL,
-            })
-          );
-        } catch {
-          // ignore
-        }
-      } else {
-        try {
-          const saved = localStorage.getItem('geoagri_saved_user');
-          if (saved) {
-            setCurrentUser(JSON.parse(saved));
-          } else {
-            setCurrentUser(null);
-          }
-        } catch {
-          setCurrentUser(null);
-        }
-      }
+      setCurrentUser(user);
       if (unsubscribeZones) {
         unsubscribeZones();
         unsubscribeZones = null;
@@ -847,91 +814,40 @@ export default function App() {
     }
 
     if (outcome.status === 'unauthorized_domain') {
-      setAuthPopupAlert({
-        messageAr: `النطاق الحالي (${outcome.host}) غير مضاف في النطاقات المصرح بها لتسجيل الدخول. تم حفظ بياناتك محلياً بأمان.`,
-        messageEn: `Current domain (${outcome.host}) is not authorized in Firebase Auth settings. Local work remains saved.`,
-        showOpenTab: false,
-      });
+      const host = outcome.host || (typeof window !== 'undefined' ? window.location.hostname : 'yasserelzanaty2-cloud.github.io');
+      setDomainModalHost(host);
+      setIsDomainAuthModalOpen(true);
       return;
     }
 
     if (outcome.status === 'error') {
       setAuthPopupAlert({
-        messageAr: 'تعذر إتمام تسجيل الدخول بحساب جوجل حالياً — يمكنك مواصلة العمل وستُحفظ بياناتك محلياً.',
-        messageEn: `Google Sign-In could not complete (${outcome.code}). You can continue working locally.`,
+        messageAr: `تعذر إتمام تسجيل الدخول بحساب Google (${outcome.code}) — يمكنك مواصلة العمل وستُحفظ بياناتك محلياً بأمان.`,
+        messageEn: `Google Sign-In could not complete (${outcome.code}). You can continue working safely locally.`,
         showOpenTab: false,
       });
     }
   };
 
-  const handleDirectSignIn = (name: string, email: string) => {
-    const cleanName = name.trim() || 'Yasser Elzanaty';
-    const cleanEmail = email.trim() || 'yasser.elzanaty@geomatrix.org';
-    const directUser: CustomAppUser = {
-      uid: `user_${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'yasser'}`,
-      displayName: cleanName,
-      email: cleanEmail,
-      photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-      emailVerified: true,
-      isAnonymous: false,
-    };
-    setCurrentUser(directUser);
-    try {
-      localStorage.setItem('geoagri_saved_user', JSON.stringify(directUser));
-    } catch {
-      // ignore
-    }
-    setIsAuthModalOpen(false);
-    setAuthPopupAlert(null);
-    setPdfBannerMessage(
-      language === 'ar'
-        ? `تم تسجيل الدخول بنجاح كـ ${directUser.displayName} (فريق Geomatrix) — تم تفعيل حفظ ومزامنة البيانات!`
-        : `Signed in as ${directUser.displayName} (Team Geomatrix) — local & cloud telemetry active!`
-    );
-    setTimeout(() => setPdfBannerMessage(null), 5000);
-  };
-
-  const handleSignInWithGoogle = () => {
-    setAuthPopupAlert(null);
-    setIsAuthModalOpen(true);
-  };
-
-  const handleExecuteGooglePopup = async () => {
+  const handleSignInWithGoogle = async () => {
     setAuthPopupAlert(null);
     setIsAuthLoading(true);
     try {
       const outcome = await signInWithGoogleSmart();
       if (outcome.status === 'signed_in') {
         setCurrentUser(outcome.user);
-        try {
-          localStorage.setItem(
-            'geoagri_saved_user',
-            JSON.stringify({
-              uid: outcome.user.uid,
-              displayName: outcome.user.displayName,
-              email: outcome.user.email,
-              photoURL: outcome.user.photoURL,
-            })
-          );
-        } catch {
-          // ignore
-        }
-        setIsAuthModalOpen(false);
         setPdfBannerMessage(
           language === 'ar'
-            ? `تم تسجيل الدخول بنجاح (${outcome.user.displayName || outcome.user.email}) — تتم مزامنة زوناتك سحابياً.`
-            : `Signed in as ${outcome.user.displayName || outcome.user.email} — cloud sync active.`
+            ? `تم تسجيل الدخول بنجاح بحساب Google: ${outcome.user.displayName || outcome.user.email}`
+            : `Signed in successfully with Google: ${outcome.user.displayName || outcome.user.email}`
         );
         setTimeout(() => setPdfBannerMessage(null), 5000);
       } else if (outcome.status === 'unauthorized_domain') {
-        // Automatically smoothly fall back to direct sign in with notification
-        handleDirectSignIn(customLoginName, customLoginEmail);
-        setPdfBannerMessage(
-          language === 'ar'
-            ? `نظراً لقيود نطاق GitHub Pages، تم تفعيل الدخول المباشر بنجاح كـ ${customLoginName} وحفظ بياناتك بأمان!`
-            : `GitHub Pages domain bypass active: Signed in directly as ${customLoginName}!`
-        );
-        setTimeout(() => setPdfBannerMessage(null), 6000);
+        const host = outcome.host || (typeof window !== 'undefined' ? window.location.hostname : 'yasserelzanaty2-cloud.github.io');
+        setDomainModalHost(host);
+        setIsDomainAuthModalOpen(true);
+      } else if (outcome.status === 'cancelled') {
+        // User closed the popup window
       } else {
         showSignInOutcomeNotice(outcome, false);
       }
@@ -970,20 +886,16 @@ export default function App() {
         handleCreateZone(draft, outcome.user.uid);
         setPdfBannerMessage(
           language === 'ar'
-            ? `تم حفظ الزونة ومزامنتها مع حساب جوجل (${outcome.user.displayName || outcome.user.email}).`
+            ? `تم حفظ الزونة ومزامنتها سحابياً مع حساب Google (${outcome.user.displayName || outcome.user.email}).`
             : `Zone saved & synced to Google account (${outcome.user.displayName || outcome.user.email}).`
         );
         setTimeout(() => setPdfBannerMessage(null), 5500);
       } else if (outcome.status === 'unauthorized_domain') {
-        const fallbackUid = 'user_yasser_elzanaty';
-        handleDirectSignIn('Yasser Elzanaty', 'yasser.elzanaty@geomatrix.org');
-        handleCreateZone(draft, fallbackUid);
-        setPdfBannerMessage(
-          language === 'ar'
-            ? `تم حفظ الزونة محلياً بنجاح وربطها بحساب Yasser Elzanaty!`
-            : `Zone saved locally and linked to Yasser Elzanaty!`
-        );
-        setTimeout(() => setPdfBannerMessage(null), 5500);
+        // Always save drawn zone locally for guest/current session so work is never lost
+        handleCreateZone(draft);
+        const host = outcome.host || (typeof window !== 'undefined' ? window.location.hostname : 'yasserelzanaty2-cloud.github.io');
+        setDomainModalHost(host);
+        setIsDomainAuthModalOpen(true);
       } else {
         // Preserve drawn zone locally immediately so work is never lost
         handleCreateZone(draft);
@@ -1974,135 +1886,154 @@ export default function App() {
         </div>
       )}
 
-      {/* Sleek Custom / Google Auth Modal */}
-      {isAuthModalOpen && (
+      {/* Official Google Auth & Firebase Domain Authorization Modal */}
+      {isDomainAuthModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-          onClick={() => setIsAuthModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setIsDomainAuthModalOpen(false)}
         >
           <div
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 text-slate-800 dark:text-slate-100"
             onClick={(e) => e.stopPropagation()}
             dir={isAr ? 'rtl' : 'ltr'}
           >
-            {/* Header */}
+            {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                  <LogIn className="w-5 h-5" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
                 </div>
                 <div>
                   <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                    {isAr ? 'تسجيل الدخول إلى GeoAgri Pro' : 'Sign in to GeoAgri Pro'}
+                    {isAr ? 'تفعيل تسجيل الدخول بحساب Google الرسمي' : 'Authorize Domain for Google Sign-In'}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {isAr ? 'حفظ الحقول والزونات والمزامنة السحابية' : 'Save zones, crops, and telemetry'}
+                    {isAr ? 'خطوة أمان واحدة في Firebase للسماح لجميع المستخدمين بالدخول' : 'One-time Firebase setup to allow everyone to log in'}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsAuthModalOpen(false)}
+                onClick={() => setIsDomainAuthModalOpen(false)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Option 1: Fast One-Click Sign In (Geomatrix Team Lead) */}
-            <div className="space-y-2">
-              <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {isAr ? 'الدخول السريع المعتمد (موصى به)' : 'Instant Team Sign-In (Recommended)'}
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDirectSignIn('Yasser Elzanaty', 'yasser.elzanaty@geomatrix.org')}
-                className="w-full p-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-900/20 flex items-center justify-between transition-all transform hover:-translate-y-0.5 cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-emerald-700/80 border-2 border-white/60 flex items-center justify-center text-white font-bold text-sm">
-                    YE
-                  </div>
-                  <div className="text-start">
-                    <div className="font-bold text-xs sm:text-sm">Yasser Elzanaty</div>
-                    <div className="text-[11px] text-emerald-100/90 font-medium">
-                      {isAr ? 'قائد الفريق · مهندس GIS واستشعار عن بعد' : 'Team Lead · GIS & GeoAI'}
-                    </div>
-                  </div>
-                </div>
-                <span className="text-xs bg-white/20 px-2.5 py-1 rounded-full font-bold">
-                  {isAr ? 'دخول فوري ⚡' : 'Instant ⚡'}
-                </span>
-              </button>
+            {/* Explanation */}
+            <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 rounded-xl p-3.5 text-xs text-sky-900 dark:text-sky-200 space-y-2">
+              <p className="leading-relaxed">
+                {isAr
+                  ? 'لحماية الحسابات، تفرض أنظمة Google وFirebase إضافة نطاق الموقع إلى قائمة النطاقات المصرح بها (Authorized Domains) حتى تتمكن أنت وجميع أعضاء الفريق والزوار من تسجيل الدخول بحسابات Google الشخصية (@gmail.com).'
+                  : 'For security, Google OAuth requires adding this site domain to Firebase Authorized Domains so that every user can log in with their personal Google account.'}
+              </p>
             </div>
 
-            {/* Divider */}
-            <div className="relative flex items-center justify-center my-1">
-              <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-              <span className="bg-white dark:bg-slate-900 px-3 text-xs text-slate-400 font-medium">
-                {isAr ? 'أو' : 'or'}
-              </span>
-            </div>
-
-            {/* Option 2: Google OAuth Popup */}
-            <div>
-              <button
-                type="button"
-                onClick={handleExecuteGooglePopup}
-                disabled={isAuthLoading}
-                className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2.5 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-              >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-                <span>{isAr ? 'المتابعة عبر نافذة Google' : 'Continue with Google Popup'}</span>
-              </button>
-            </div>
-
-            {/* Option 3: Custom Name / Email */}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-              <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {isAr ? 'أو دخول مخصص باسمك' : 'Or Enter Custom Details'}
-              </div>
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={customLoginName}
-                  onChange={(e) => setCustomLoginName(e.target.value)}
-                  placeholder={isAr ? 'الاسم (مثال: ياسر الزناتي)' : 'Name (e.g. Yasser Elzanaty)'}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-                <input
-                  type="email"
-                  value={customLoginEmail}
-                  onChange={(e) => setCustomLoginEmail(e.target.value)}
-                  placeholder={isAr ? 'البريد الإلكتروني' : 'Email address'}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+            {/* Step 1: Copy Domain Box */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                {isAr ? 'النطاق المطلوب إضافته:' : 'Domain to authorize:'}
+              </label>
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl p-2 font-mono text-xs text-slate-900 dark:text-white">
+                <span className="flex-1 truncate select-all">{domainModalHost}</span>
                 <button
                   type="button"
-                  onClick={() => handleDirectSignIn(customLoginName, customLoginEmail)}
-                  disabled={!customLoginName.trim()}
-                  className="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(domainModalHost);
+                    setDomainCopied(true);
+                    setTimeout(() => setDomainCopied(false), 3000);
+                  }}
+                  className="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-sans font-bold flex items-center gap-1.5 transition-colors cursor-pointer text-slate-700 dark:text-slate-200"
                 >
-                  {isAr ? 'تسجيل الدخول بالاسم المخصص' : 'Sign In with Custom Profile'}
+                  {domainCopied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                      <span className="text-emerald-600 dark:text-emerald-400">{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{isAr ? 'نسخ النطاق' : 'Copy'}</span>
+                    </>
+                  )}
                 </button>
               </div>
+            </div>
+
+            {/* Direct Link to Firebase Console */}
+            <a
+              href="https://console.firebase.google.com/project/clever-circlet-494509-s0/authentication/settings"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full p-3 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-transform transform hover:-translate-y-0.5 cursor-pointer text-center"
+            >
+              <span>{isAr ? 'فتح لوحة تحكم Firebase مباشرة لإضافة النطاق' : 'Open Firebase Console Authorized Domains'}</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+
+            {/* Steps list */}
+            <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="font-bold text-slate-700 dark:text-slate-200 mb-1">
+                {isAr ? 'طريقة الإضافة (تستغرق 30 ثانية فقط):' : '3-Step Setup (30 seconds):'}
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-4 h-4 rounded-full bg-sky-500/20 text-sky-600 dark:text-sky-400 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <span>{isAr ? 'اضغط الزر أعلاه لفتح صفحة إعدادات مشروعك في Firebase.' : 'Click the button above to open Firebase Settings.'}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-4 h-4 rounded-full bg-sky-500/20 text-sky-600 dark:text-sky-400 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <span>{isAr ? 'في قسم "النطاقات المصرح بها" (Authorized domains)، اضغط على "إضافة نطاق" (Add domain).' : 'In "Authorized domains", click "Add domain".'}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="w-4 h-4 rounded-full bg-sky-500/20 text-sky-600 dark:text-sky-400 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <span>{isAr ? `الصق (${domainModalHost}) واضغط "حفظ" (Save) — وسيعمل تسجيل الدخول بجوجل فوراً!` : `Paste (${domainModalHost}) and click Save — done!`}</span>
+              </div>
+            </div>
+
+            {/* Instant localhost tip */}
+            <div className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg">
+              {isAr
+                ? '💡 ملاحظة للمطور: إذا كنت تشغل التطبيق محلياً عبر (http://localhost:3000)، فإن تسجيل الدخول بحساب Google يعمل فوراً ومصرح به مسبقاً دون الحاجة لأي إعدادات.'
+                : '💡 Note: If running locally on http://localhost:3000, Google Sign-In is already authorized and works immediately.'}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDomainAuthModalOpen(false);
+                  void handleSignInWithGoogle();
+                }}
+                className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors cursor-pointer text-center"
+              >
+                {isAr ? 'إعادة محاولة الدخول بجوجل الآن' : 'Retry Google Sign-In Now'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDomainAuthModalOpen(false)}
+                className="py-2 px-4 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                {isAr ? 'متابعة كزائر' : 'Continue as Guest'}
+              </button>
             </div>
           </div>
         </div>
@@ -2122,11 +2053,11 @@ export default function App() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => handleDirectSignIn('Yasser Elzanaty', 'yasser.elzanaty@geomatrix.org')}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                onClick={() => setIsDomainAuthModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
               >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{isAr ? 'دخول مباشر كـ Yasser Elzanaty' : 'Sign in as Yasser Elzanaty'}</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>{isAr ? 'خطوات تفعيل النطاق' : 'Domain Setup Guide'}</span>
               </button>
               {authPopupAlert.showOpenTab && typeof window !== 'undefined' && (
                 <a
@@ -2141,7 +2072,8 @@ export default function App() {
               )}
               <button
                 type="button"
-                onClick={handleExecuteGooglePopup}
+                onClick={handleSignInWithGoogle}
+                disabled={isAuthLoading}
                 className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-xs font-semibold cursor-pointer"
               >
                 {isAr ? 'إعادة المحاولة' : 'Retry'}
