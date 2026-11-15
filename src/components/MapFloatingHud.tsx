@@ -2318,7 +2318,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
       {isDesktopLg ? (
         <>
           <div
-            className="absolute z-40 pointer-events-none"
+            className="absolute z-20 pointer-events-none"
             style={{ left: `${fabPos.x}px`, top: `${fabPos.y}px` }}
           >
             <div className="relative pointer-events-auto flex flex-row flex-wrap items-start gap-1.5">
@@ -2331,7 +2331,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
           {(topRightButtons || topRightDrawers) && (
             <div
               data-testid="map-disaster-early-warning-banner"
-              className="absolute top-3 right-3 z-30 flex flex-col items-end gap-2 pointer-events-none max-w-[calc(100vw-420px)]"
+              className="absolute top-3 right-3 z-20 flex flex-col items-end gap-2 pointer-events-none max-w-[calc(100vw-420px)]"
             >
               {topRightButtons}
               {topRightDrawers}
@@ -2343,7 +2343,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
       ) : (
         <div
           data-testid="unified-map-top-hud"
-          className="absolute inset-x-2.5 top-2.5 z-40 pointer-events-none flex flex-col gap-2"
+          className="absolute inset-x-2.5 top-2.5 z-20 pointer-events-none flex flex-col gap-2"
         >
           <div className="flex flex-wrap items-start justify-between gap-1.5 w-full">
             {launcherButtons}
@@ -2444,7 +2444,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
       {/* 4. UNIFIED DRAGGABLE COLLAPSIBLE BOTTOM TABS POPUP DOCK (HIDES ALL BOTTOM TABS UNTIL CLICKED) */}
       <div
         data-testid="draggable-bottom-tabs-dock"
-        className="absolute bottom-3 left-1/2 z-[70] pointer-events-none flex flex-col items-center gap-2 w-[clamp(280px,94vw,680px)]"
+        className="absolute bottom-3 left-1/2 z-30 pointer-events-none flex flex-col items-center gap-2 w-[clamp(280px,94vw,680px)]"
         style={{
           transform: `translate3d(calc(-50% + ${popoverOffset.x}px), ${popoverOffset.y}px, 0)`,
         }}

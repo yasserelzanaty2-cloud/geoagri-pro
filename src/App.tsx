@@ -1472,7 +1472,12 @@ export default function App() {
       }`}
     >
       {/* Simplified 3-Zone Top Navigation Bar consistent across all views */}
-      <div ref={mobileMenuWrapperRef} className="sticky top-0 z-40 shrink-0">
+      <div
+        ref={mobileMenuWrapperRef}
+        className={`sticky top-0 shrink-0 transition-all ${
+          mobileNavOpen ? 'z-[100]' : 'z-40'
+        }`}
+      >
         <header className="h-[clamp(3.25rem,5vh,3.75rem)] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-2.5 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 lg:gap-8">
           {/* Zone 1: Mobile/Tablet Menu Trigger (<1024px) + Single text element wordmark */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
@@ -1603,12 +1608,18 @@ export default function App() {
 
         {/* Mobile & Tablet Navigation Drawer (<1024px) */}
         {mobileNavOpen && (
-          <nav
-            id="mobile-tablet-nav-drawer"
-            data-testid="mobile-tablet-nav-drawer"
-            aria-label="Mobile Navigation"
-            className="lg:hidden absolute top-full inset-x-0 z-50 bg-white/98 dark:bg-slate-900/98 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800 shadow-2xl p-3 space-y-1.5 max-h-[calc(100dvh-60px)] overflow-y-auto"
-          >
+          <>
+            <div
+              className="lg:hidden fixed inset-0 top-[clamp(3.25rem,5vh,3.75rem)] bg-slate-950/40 backdrop-blur-xs z-40"
+              onClick={() => setMobileNavOpen(false)}
+              aria-hidden="true"
+            />
+            <nav
+              id="mobile-tablet-nav-drawer"
+              data-testid="mobile-tablet-nav-drawer"
+              aria-label="Mobile Navigation"
+              className="lg:hidden absolute top-full inset-x-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-2xl p-3 space-y-1.5 max-h-[calc(100dvh-60px)] overflow-y-auto"
+            >
             {navTabs.map((t) => {
               const isActive = activeTab === t.id;
               return (
@@ -1655,7 +1666,8 @@ export default function App() {
               </div>
             )}
           </nav>
-        )}
+        </>
+      )}
       </div>
 
       {/* Always-Visible Active Farm Context Bar across all tabs and viewports */}
