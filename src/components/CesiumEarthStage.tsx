@@ -2547,7 +2547,8 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
     if (typeof window !== 'undefined' && !window.CESIUM_BASE_URL) {
-      window.CESIUM_BASE_URL = '/cesiumStatic';
+      const base = import.meta.env.BASE_URL || '/';
+      window.CESIUM_BASE_URL = `${base.endsWith('/') ? base : base + '/'}cesiumStatic`;
     }
 
     // Balanced HTTP/2 tile concurrency so zooming never saturates JS decode queue
