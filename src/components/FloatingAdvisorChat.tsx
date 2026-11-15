@@ -60,16 +60,27 @@ interface FloatingAdvisorChatProps {
   onAdoptCrop?: (cropId: string, customLabel?: string) => void;
 }
 
-const BUBBLE_SIZE = 58;
-const EDGE_PADDING = 16;
+const BUBBLE_SIZE = 44;
+const EDGE_PADDING = 8;
+const DEFAULT_MARGIN_EDGE = 16;
 
-function clampBubblePosition(x: number, y: number, bottomSafeOffset = 20) {
-  if (typeof window === 'undefined') return { x: 24, y: 24 };
-  const maxX = Math.max(EDGE_PADDING, window.innerWidth - BUBBLE_SIZE - EDGE_PADDING);
-  const maxY = Math.max(72, window.innerHeight - BUBBLE_SIZE - bottomSafeOffset);
+function clampBubblePosition(x: number, y: number) {
+  if (typeof window === 'undefined') return { x: 16, y: 16 };
+  const minX = EDGE_PADDING;
+  const maxX = Math.max(minX, window.innerWidth - BUBBLE_SIZE - EDGE_PADDING);
+  const minY = EDGE_PADDING;
+  const maxY = Math.max(minY, window.innerHeight - BUBBLE_SIZE - EDGE_PADDING);
   return {
-    x: Math.max(EDGE_PADDING, Math.min(maxX, x)),
-    y: Math.max(72, Math.min(maxY, y)),
+    x: Math.max(minX, Math.min(maxX, x)),
+    y: Math.max(minY, Math.min(maxY, y)),
+  };
+}
+
+function getDefaultBottomRightPos(): { x: number; y: number } {
+  if (typeof window === 'undefined') return { x: 1200, y: 760 };
+  return {
+    x: Math.max(EDGE_PADDING, window.innerWidth - BUBBLE_SIZE - DEFAULT_MARGIN_EDGE),
+    y: Math.max(EDGE_PADDING, window.innerHeight - BUBBLE_SIZE - DEFAULT_MARGIN_EDGE),
   };
 }
 
@@ -102,18 +113,9 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
   const [showQuickChips, setShowQuickChips] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const bottomSafeOffset = isAtlasTab ? 94 : 20;
-  const bottomSafeOffsetRef = useRef<number>(bottomSafeOffset);
-  bottomSafeOffsetRef.current = bottomSafeOffset;
 
-  const [bubblePos, setBubblePos] = useState<{ x: number; y: number }>(() => {
-    if (typeof window === 'undefined') return { x: 1200, y: 760 };
-    return clampBubblePosition(
-      window.innerWidth - BUBBLE_SIZE - (window.innerWidth < 640 ? 16 : 22),
-      window.innerHeight - BUBBLE_SIZE - bottomSafeOffset,
-      bottomSafeOffset
-    );
-  });
+  const [hasUserMoved, setHasUserMoved] = useState<boolean>(false);
+  const [bubblePos, setBubblePos] = useState<{ x: number; y: number }>(getDefaultBottomRightPos);
 
   const dragRef = useRef<{
     startX: number;
@@ -130,19 +132,19 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
     isOpen: boolean;
   } & Partial<RiskInfoModalPayload>>({ isOpen: false });
 
-  useEffect(() => {
-    setBubblePos((prev) => clampBubblePosition(prev.x, prev.y, bottomSafeOffset));
-  }, [bottomSafeOffset]);
-
+  // Keep bubble anchored in the bottom-right corner on resize until the user manually drags it
   useEffect(() => {
     const handleResize = () => {
-      setBubblePos((prev) =>
-        clampBubblePosition(prev.x, prev.y, bottomSafeOffsetRef.current)
-      );
+      setBubblePos((prev) => {
+        if (!hasUserMoved) {
+          return getDefaultBottomRightPos();
+        }
+        return clampBubblePosition(prev.x, prev.y);
+      });
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [hasUserMoved]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -180,17 +182,23 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
     if (!drag) return;
     const dx = e.clientX - drag.startX;
     const dy = e.clientY - drag.startY;
-    if (Math.hypot(dx, dy) > 6) {
+    if (!drag.moved && Math.hypot(dx, dy) > 5) {
       drag.moved = true;
+      setHasUserMoved(true);
     }
-    setBubblePos(
-      clampBubblePosition(drag.origX + dx, drag.origY + dy, bottomSafeOffsetRef.current)
-    );
+    if (drag.moved) {
+      setBubblePos(clampBubblePosition(drag.origX + dx, drag.origY + dy));
+    }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     dragRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
     if (drag && !drag.moved) {
       onOpenChange(true);
     }
@@ -242,16 +250,16 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
                 onOpenChange(true);
               }
             }}
-            className="relative w-[58px] h-[58px] rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-950/35 border-2 border-white/80 dark:border-slate-900 flex flex-col items-center justify-center touch-none select-none cursor-grab active:cursor-grabbing transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="relative w-[44px] h-[44px] rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/40 border-2 border-white/90 dark:border-slate-800 flex flex-col items-center justify-center touch-none select-none cursor-grab active:cursor-grabbing transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-emerald-400"
           >
-            <Bot className="w-6 h-6" />
-            <span className="text-[8px] font-mono font-bold leading-none mt-0.5 tracking-tight">
-              GeoAgri ai
+            <Bot className="w-4.5 h-4.5 text-white" />
+            <span className="text-[6.5px] font-mono font-bold leading-none mt-0.5 tracking-tight text-white/95">
+              GeoAgri
             </span>
             {messages.length > 1 && (
               <span
                 aria-hidden="true"
-                className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 px-1 rounded-full bg-slate-900 dark:bg-emerald-300 text-white dark:text-slate-950 text-[10px] font-mono font-bold flex items-center justify-center border border-white dark:border-slate-900"
+                className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-slate-900 dark:bg-emerald-300 text-white dark:text-slate-950 text-[9px] font-mono font-bold flex items-center justify-center border border-white dark:border-slate-900 shadow-sm"
               >
                 {messages.length}
               </span>
