@@ -128,7 +128,7 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
