@@ -1,0 +1,196 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated GeoAgri Pro user preferences and active study zone pointer (strictly private to owner).",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID owning this profile.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name shown in header.",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Optional Google profile avatar URL.",
+          "minLength": 0,
+          "maxLength": 512
+        },
+        "preferredLanguage": {
+          "type": "string",
+          "enum": ["ar", "en"]
+        },
+        "activeZoneId": {
+          "type": "string",
+          "description": "Currently selected study zone ID or empty string.",
+          "minLength": 0,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "preferredLanguage", "createdAt", "updatedAt"]
+    },
+    "StudyZone": {
+      "title": "StudyZone",
+      "description": "User-delineated agricultural study zone with custom crop, custom classification, soil texture, spectral averages, and rotation plans.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "nameAr": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "nameEn": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "categoryAr": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "categoryEn": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "color": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 24
+        },
+        "vertices": {
+          "type": "array",
+          "description": "Polygon vertices (3 to 100 coordinate pairs)."
+        },
+        "centroid": {
+          "type": "object",
+          "description": "Geodesic center { lat, lng }."
+        },
+        "area": {
+          "type": "object",
+          "description": "Area breakdown in squareMeters, hectares, feddans, qirats, sahms."
+        },
+        "soil": {
+          "type": "object",
+          "description": "SoilProfile including canonical texture, optional customTextureLabel, salinityEC, pH, irrigation (flood, drip, sprinkler, pivot, rainfed), and optional customIrrigationLabel."
+        },
+        "currentCropId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "customCropLabel": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "plantingDateISO": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 32
+        },
+        "subZones": {
+          "type": "array",
+          "description": "Three management sub-zones A, B, C."
+        },
+        "farmAverages": {
+          "type": "object",
+          "description": "Mean values for the 10 spectral and soil indices."
+        },
+        "weatherSource": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "nasaSource": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "radiometricSource": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "customRotationPlans": {
+          "type": "object",
+          "description": "Zone A/B/C custom multi-season crop rotation plans."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerUid",
+        "nameAr",
+        "nameEn",
+        "categoryAr",
+        "categoryEn",
+        "color",
+        "vertices",
+        "centroid",
+        "area",
+        "soil",
+        "currentCropId",
+        "plantingDateISO",
+        "subZones",
+        "farmAverages",
+        "weatherSource",
+        "nasaSource",
+        "radiometricSource",
+        "customRotationPlans",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Owner-only user preference document holding activeZoneId and display metadata."
+    },
+    "/users/{userId}/zones/{zoneId}": {
+      "schema": {
+        "$ref": "#/entities/StudyZone"
+      },
+      "description": "User-owned agricultural study zones synced cleanly with Firebase Auth Google accounts."
+    }
+  }
+}

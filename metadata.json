@@ -1,0 +1,11 @@
+{
+  "name": "Remix Remix GeoAgri Pro — المستشار الزراعي الفضائي الذكي",
+  "description": "Mobile-First Precision Agriculture \u0026 Predictive Decision Support System powered by Multi-Spectral Satellite Indices (NDVI, NDWI, SAVI, EVI, NDMI, LST), NASA POWER \u0026 Open-Meteo Predictive Rainfall Models, Optimal Crop \u0026 Planting Window Recommender, and Context-Aware AI Agronomist.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

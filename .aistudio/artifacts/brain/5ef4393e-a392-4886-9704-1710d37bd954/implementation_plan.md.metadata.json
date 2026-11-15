@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan to calibrate all 8 thematic maps and NASA GIBS tile layers with their official colormaps, fix broken MODIS NDVI 404 dates, apply balanced ocean/dry transparency masking, align 3D elevation shader meter thresholds with the legend, add a live wind speed color field, and redesign the bottom color legend as a full vertical list with active point-color highlighting.",
+  "updatedAt":  "2026-11-13T19:07:56.296737578Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

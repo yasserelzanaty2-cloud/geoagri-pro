@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1 / Global Safety Net: Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint: UserProfile (/users/{userId})
+    function isValidUserProfileFields(data, userId) {
+      return data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 120))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 512))
+        && data.preferredLanguage is string && data.preferredLanguage in ['ar', 'en']
+        && (!('activeZoneId' in data) || (data.activeZoneId is string && data.activeZoneId.size() <= 128))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserProfileCreate(data, userId) {
+      return data.keys().hasAll(['uid', 'preferredLanguage', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'preferredLanguage', 'activeZoneId', 'createdAt', 'updatedAt'])
+        && isValidUserProfileFields(data, userId)
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidUserProfileUpdate(nextData, prevData, userId) {
+      return isValidUserProfileFields(nextData, userId)
+        && nextData.uid == prevData.uid
+        && nextData.createdAt == prevData.createdAt
+        && nextData.updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'preferredLanguage', 'activeZoneId', 'updatedAt']);
+    }
+
+    // Validation Blueprint: StudyZone (/users/{userId}/zones/{zoneId})
+    function isValidStudyZoneFields(data, userId, zoneId) {
+      return data.id is string && isValidId(data.id) && data.id == zoneId
+        && data.ownerUid is string && isValidId(data.ownerUid)
+        && data.ownerUid == userId
+        && data.ownerUid == request.auth.uid
+        && data.nameAr is string && data.nameAr.size() >= 1 && data.nameAr.size() <= 120
+        && data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 120
+        && data.categoryAr is string && data.categoryAr.size() >= 1 && data.categoryAr.size() <= 120
+        && data.categoryEn is string && data.categoryEn.size() >= 1 && data.categoryEn.size() <= 120
+        && data.color is string && data.color.size() >= 4 && data.color.size() <= 24
+        && data.vertices is list && data.vertices.size() >= 3 && data.vertices.size() <= 100
+        && data.vertices[0] is map
+        && data.centroid is map
+        && data.centroid.keys().hasOnly(['lat', 'lng'])
+        && data.centroid.lat is number && data.centroid.lng is number
+        && data.area is map
+        && data.soil is map
+        && data.soil.keys().hasOnly(['texture', 'customTextureLabel', 'salinityEC', 'ph', 'organicMatterPct', 'irrigation', 'customIrrigationLabel', 'groundwaterDepthM'])
+        && data.soil.texture is string && data.soil.texture in ['clay', 'loamy', 'sandy', 'calcareous']
+        && (!('customTextureLabel' in data.soil) || (data.soil.customTextureLabel is string && data.soil.customTextureLabel.size() <= 120))
+        && data.soil.irrigation is string && data.soil.irrigation in ['flood', 'drip', 'sprinkler', 'pivot', 'rainfed']
+        && (!('customIrrigationLabel' in data.soil) || (data.soil.customIrrigationLabel is string && data.soil.customIrrigationLabel.size() <= 120))
+        && data.currentCropId is string && data.currentCropId.size() >= 1 && data.currentCropId.size() <= 64
+        && (!('customCropLabel' in data) || (data.customCropLabel is string && data.customCropLabel.size() <= 120))
+        && data.plantingDateISO is string && data.plantingDateISO.size() >= 4 && data.plantingDateISO.size() <= 32
+        && data.subZones is list && data.subZones.size() <= 6
+        && data.farmAverages is map
+        && data.weatherSource is string && data.weatherSource.size() >= 1 && data.weatherSource.size() <= 40
+        && data.nasaSource is string && data.nasaSource.size() >= 1 && data.nasaSource.size() <= 40
+        && data.radiometricSource is string && data.radiometricSource.size() >= 1 && data.radiometricSource.size() <= 50
+        && data.customRotationPlans is map
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStudyZoneCreate(data, userId, zoneId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'nameAr', 'nameEn', 'categoryAr', 'categoryEn', 'color',
+          'vertices', 'centroid', 'area', 'soil', 'currentCropId', 'plantingDateISO',
+          'subZones', 'farmAverages', 'weatherSource', 'nasaSource',
+          'radiometricSource', 'customRotationPlans', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerUid', 'nameAr', 'nameEn', 'categoryAr', 'categoryEn', 'color',
+          'vertices', 'centroid', 'area', 'soil', 'currentCropId', 'customCropLabel',
+          'plantingDateISO', 'subZones', 'farmAverages', 'weatherSource', 'nasaSource',
+          'radiometricSource', 'customRotationPlans', 'createdAt', 'updatedAt'
+        ])
+        && isValidStudyZoneFields(data, userId, zoneId)
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidStudyZoneUpdate(nextData, prevData, userId, zoneId) {
+      return isValidStudyZoneFields(nextData, userId, zoneId)
+        && nextData.id == prevData.id
+        && nextData.ownerUid == prevData.ownerUid
+        && nextData.createdAt == prevData.createdAt
+        && nextData.updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'nameAr', 'nameEn', 'categoryAr', 'categoryEn', 'color',
+          'vertices', 'centroid', 'area', 'soil', 'currentCropId', 'customCropLabel',
+          'plantingDateISO', 'subZones', 'farmAverages', 'weatherSource', 'nasaSource',
+          'radiometricSource', 'customRotationPlans', 'updatedAt'
+        ]);
+    }
+
+    // Collection Rules: /users/{userId}
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfileCreate(incoming(), userId);
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfileUpdate(incoming(), existing(), userId);
+      allow delete: if isValidId(userId) && isOwner(userId);
+
+      // Subcollection Rules: /users/{userId}/zones/{zoneId}
+      match /zones/{zoneId} {
+        allow get: if isValidId(userId) && isValidId(zoneId) && isOwner(userId)
+          && (resource == null || existing().ownerUid == request.auth.uid);
+        allow list: if isValidId(userId) && isOwner(userId)
+          && existing().ownerUid == request.auth.uid;
+        allow create: if isValidId(userId) && isValidId(zoneId)
+          && isOwner(userId)
+          && isValidStudyZoneCreate(incoming(), userId, zoneId);
+        allow update: if isValidId(userId) && isValidId(zoneId)
+          && isOwner(userId)
+          && isValidStudyZoneUpdate(incoming(), existing(), userId, zoneId);
+        allow delete: if isValidId(userId) && isValidId(zoneId) && isOwner(userId);
+      }
+    }
+  }
+}
