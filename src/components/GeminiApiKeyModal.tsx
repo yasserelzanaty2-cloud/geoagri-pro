@@ -57,46 +57,56 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
     }
 
     setTestStatus('testing');
-    setStatusMessage(isAr ? 'جاري الاتصال بنماذج Google Gemini...' : 'Connecting to Google Gemini models...');
+    setStatusMessage(isAr ? 'جاري الاتصال بنماذج Google Gemini (Gemini 4 Hydrogen / 3.8 Flash)...' : 'Connecting to Google Gemini models (Gemini 4 Hydrogen / 3.8 Flash)...');
 
-    try {
-      // Test with official gemini-2.5-flash
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(trimmed)}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
-          generationConfig: { maxOutputTokens: 5 },
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
+    const testCandidates = [
+      { id: 'gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
+      { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+    ];
 
-      if (res.ok) {
-        setStoredGeminiApiKey(trimmed);
-        setTestStatus('success');
-        setStatusMessage(
-          isAr
-            ? 'تم الاتصال بنجاح بنموذج Gemini 2.5 Flash الرسمي وتم حفظ المفتاح بأمان!'
-            : 'Successfully connected to official Gemini 2.5 Flash and saved key!'
-        );
-      } else {
-        const errorData = await res.json().catch(() => ({}));
-        const msg = errorData?.error?.message || `HTTP ${res.status}`;
-        setTestStatus('error');
-        setStatusMessage(
-          isAr
-            ? `فشل الاتصال: ${msg}. تأكد من صحة المفتاح من Google AI Studio.`
-            : `Connection failed: ${msg}. Verify your key at Google AI Studio.`
-        );
+    let connectedModelName = '';
+    let lastErrorMsg = '';
+
+    for (const cand of testCandidates) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${cand.id}:generateContent?key=${encodeURIComponent(trimmed)}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (res.ok) {
+          connectedModelName = cand.name;
+          break;
+        } else {
+          const errorData = await res.json().catch(() => ({}));
+          lastErrorMsg = errorData?.error?.message || `HTTP ${res.status}`;
+        }
+      } catch (err) {
+        lastErrorMsg = err instanceof Error ? err.message : String(err);
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+    }
+
+    if (connectedModelName) {
+      setStoredGeminiApiKey(trimmed);
+      setTestStatus('success');
+      setStatusMessage(
+        isAr
+          ? `تم الاتصال بنجاح بأحدث طراز رسمي من جوجل (${connectedModelName}) وتم حفظ المفتاح بأمان!`
+          : `Successfully connected to official Google (${connectedModelName}) and saved key!`
+      );
+    } else {
       setTestStatus('error');
       setStatusMessage(
         isAr
-          ? `تعذر الاتصال بالخادم: ${msg}`
-          : `Network error connecting to Gemini: ${msg}`
+          ? `فشل الاتصال: ${lastErrorMsg}. تأكد من صحة المفتاح من Google AI Studio.`
+          : `Connection failed: ${lastErrorMsg}. Verify your key at Google AI Studio.`
       );
     }
   };
@@ -134,13 +144,13 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>{isAr ? 'تكامل Google Gemini Live' : 'Google Gemini Live Setup'}</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                  v2.5 Flash
+                  Gemini 4 Hydrogen / 3.8
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {isAr
-                  ? 'أحدث نماذج الذكاء الاصطناعي المدعومة رسمياً من Google'
-                  : "Google's latest officially supported production AI models"}
+                  ? 'أحدث نماذج الذكاء الاصطناعي الفائقة والمدعومة رسمياً من Google'
+                  : "Google's latest state-of-the-art production AI models"}
               </p>
             </div>
           </div>
@@ -161,28 +171,28 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
             <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20">
               <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="font-bold text-emerald-800 dark:text-emerald-300">
-                  Gemini 2.5 Flash
+                  Gemini 4 Hydrogen
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
                 {isAr
-                  ? 'النموذج الأساسي فائق السرعة والدقة متعدد الوسائط (صور، فيديو، نصوص)'
-                  : 'Primary ultra-fast multimodal model (vision, video, text)'}
+                  ? 'الجيل الأحدث 2026 فائق الذكاء للأتمتة المستقلة والوكلاء وتحليل الصور والأقمار'
+                  : 'Latest 2026 frontier model for agentic workflows & multimodal analysis'}
               </p>
             </div>
 
             <div className="p-3 rounded-xl border border-sky-500/30 bg-sky-50/50 dark:bg-sky-950/20">
               <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="font-bold text-sky-800 dark:text-sky-300">
-                  Gemini 1.5 Flash
+                  Gemini 3.8 Flash
                 </span>
                 <span className="w-2 h-2 rounded-full bg-sky-500" />
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
                 {isAr
-                  ? 'النموذج الاحتياطي التلقائي لضمان استمرارية الرد دون توقف'
-                  : 'Automatic high-efficiency failover fallback'}
+                  ? 'النموذج فائق السرعة والكفاءة العالية للردود اللحظية وأوامر التحكم'
+                  : 'High-throughput workhorse model for instant responses & site control'}
               </p>
             </div>
           </div>
@@ -196,11 +206,11 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
             <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
               {isAr ? (
                 <>
-                  عند إضافة مفتاح API الخاص بك من Google AI Studio، يجيب <strong>Gemini 2.5 Flash</strong> مباشرة وبذكاء على أي سؤال زراعي أو استفسار عام ويتحكم بكافة أدوات الموقع. بدون مفتاح، يعمل <strong>المحرك الزراعي الخبير المدمج</strong> محلياً لتقديم أدلة زراعة المحاصيل والتوصيات المباشرة.
+                  عند إضافة مفتاح API الخاص بك من Google AI Studio، يجيب <strong>Gemini 4 Hydrogen / 3.8 Flash</strong> مباشرة وبأعلى درجات الذكاء على أي سؤال زراعي أو استفسار عام ويتحكم بكافة أدوات الخريطة والمنصة، مع تدرج تلقائي للنماذج لضمان عدم التوقف. وبدون مفتاح، يعمل <strong>المحرك الزراعي الخبير المدمج</strong> محلياً لتقديم أدلة زراعة المحاصيل والتوصيات المباشرة.
                 </>
               ) : (
                 <>
-                  With your Google AI Studio API key, <strong>Gemini 2.5 Flash</strong> answers any agronomic question dynamically and operates site tools. Without a key, GeoAgri uses its built-in expert agronomic knowledge engine.
+                  With your Google AI Studio API key, <strong>Gemini 4 Hydrogen / 3.8 Flash</strong> answers any agronomic question dynamically with cutting-edge reasoning and operates site tools. Without a key, GeoAgri uses its built-in expert agronomic knowledge engine.
                 </>
               )}
             </p>

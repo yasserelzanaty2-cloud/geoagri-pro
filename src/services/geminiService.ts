@@ -237,7 +237,8 @@ const GEMINI_FUNCTION_DECLARATIONS = [
 
 /**
  * Call Google Gemini API directly from client side
- * Uses official currently supported models: gemini-2.5-flash -> fallback: gemini-1.5-flash
+ * Uses official currently supported models in priority order:
+ * Gemini 4 Hydrogen -> Gemini 3.8 Flash -> Gemini 2.5 Flash -> Gemini 1.5 Flash
  */
 export async function callGeminiDirect(
   req: GeminiAdvisorRequest
@@ -297,8 +298,13 @@ ${JSON.stringify(req.siteInventory, null, 2)}`;
   }
   contents.push({ role: 'user', parts: userParts });
 
-  // Supported Google models in priority order
-  const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  // Supported Google models in priority order: Gemini 4 Hydrogen -> Gemini 3.8 Flash -> Gemini 2.5 Flash -> Gemini 1.5 Flash
+  const models = [
+    'gemini-4-hydrogen',
+    'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+  ];
 
   for (const model of models) {
     try {
@@ -315,12 +321,29 @@ ${JSON.stringify(req.siteInventory, null, 2)}`;
         },
       };
 
-      const resp = await fetch(url, {
+      let resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bodyPayload),
         signal: AbortSignal.timeout(hasAttachment ? 35000 : 25000),
       });
+
+      // If rejected due to generationConfig schema differences on Gemini 4 / 3.8, retry cleanly
+      if (!resp.ok && resp.status === 400) {
+        const cleanPayload = {
+          contents,
+          systemInstruction: {
+            parts: [{ text: systemPrompt }],
+          },
+          tools: [{ functionDeclarations: GEMINI_FUNCTION_DECLARATIONS }],
+        };
+        resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cleanPayload),
+          signal: AbortSignal.timeout(hasAttachment ? 35000 : 25000),
+        });
+      }
 
       if (!resp.ok) {
         console.warn(`Gemini direct call to ${model} returned HTTP ${resp.status}`);
@@ -381,7 +404,7 @@ ${JSON.stringify(req.siteInventory, null, 2)}`;
 }
 
 /**
- * Direct Gemini audio transcription using gemini-2.5-flash
+ * Direct Gemini audio transcription using Gemini 4 Hydrogen / 3.8 Flash / 2.5 Flash
  */
 export async function transcribeAudioDirect(
   base64Audio: string,
@@ -391,47 +414,59 @@ export async function transcribeAudioDirect(
   const apiKey = getStoredGeminiApiKey();
   if (!apiKey || !base64Audio) return null;
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                inlineData: {
-                  mimeType: mimeType || 'audio/webm',
-                  data: base64Audio,
-                },
-              },
-              {
-                text:
-                  language === 'ar'
-                    ? 'قم بنسخ وتسجيل هذا التسجيل الصوتي بدقة إلى نص عربي واضح. اكتب النص المنطوق فقط بدون أي مقدمات أو تعليقات.'
-                    : 'Transcribe this audio recording accurately into text. Output only the verbatim spoken transcript without greetings or commentary.',
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 300,
-        },
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
+  const models = [
+    'gemini-4-hydrogen',
+    'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+  ];
 
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    const candidate = data.candidates?.[0];
-    const text = candidate?.content?.parts?.[0]?.text;
-    return typeof text === 'string' ? text.trim() : null;
-  } catch (err) {
-    console.warn('Direct transcription error:', err);
-    return null;
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType || 'audio/webm',
+                    data: base64Audio,
+                  },
+                },
+                {
+                  text:
+                    language === 'ar'
+                      ? 'قم بنسخ وتسجيل هذا التسجيل الصوتي بدقة إلى نص عربي واضح. اكتب النص المنطوق فقط بدون أي مقدمات أو تعليقات.'
+                      : 'Transcribe this audio recording accurately into text. Output only the verbatim spoken transcript without greetings or commentary.',
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 300,
+          },
+        }),
+        signal: AbortSignal.timeout(20000),
+      });
+
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const candidate = data.candidates?.[0];
+      const text = candidate?.content?.parts?.[0]?.text;
+      if (typeof text === 'string' && text.trim().length > 0) {
+        return text.trim();
+      }
+    } catch {
+      continue;
+    }
   }
+
+  return null;
 }
 

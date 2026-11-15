@@ -367,24 +367,38 @@ async function startServer() {
           ? 'Transcribe the spoken audio accurately word for word in the exact language spoken (English, Egyptian Arabic, or Modern Standard Arabic, including agricultural or technical terms like GeoAgri, NDVI, NDWI, EC, pH). Output ONLY the clean transcribed text with proper punctuation and no commentary.'
           : 'فرّغ الكلام المنطوق في هذا المقطع الصوتي بدقة تامة كلمة بكلمة كما قيل بالضبط (سواء باللهجة المصرية أو العربية الفصحى أو الإنجليزية، بما في ذلك المصطلحات الزراعية والتقنية مثل GeoAgri وNDVI وEC وpH). أعد النص المُفرّغ فقط بدون أي مقدمات أو شروحات أو تخمين كلمات غير منطوقة.';
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType.split(';')[0] || 'audio/webm',
-                data: audioBase64,
-              },
-            },
-            { text: promptText },
-          ],
-        },
-      });
+      const transcribeModels = [
+        'gemini-4-hydrogen',
+        'gemini-3.8-flash',
+        'gemini-2.5-flash',
+        'gemini-1.5-flash',
+      ] as const;
 
-      res.json({
-        transcript: (response.text || '').trim(),
-      });
+      let transcript = '';
+      for (const m of transcribeModels) {
+        try {
+          const response = await ai.models.generateContent({
+            model: m,
+            contents: {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType.split(';')[0] || 'audio/webm',
+                    data: audioBase64,
+                  },
+                },
+                { text: promptText },
+              ],
+            },
+          });
+          transcript = (response.text || '').trim();
+          if (transcript) break;
+        } catch {
+          continue;
+        }
+      }
+
+      res.json({ transcript });
     } catch (error) {
       res.status(500).json({
         error: error instanceof Error ? error.message : 'Transcription failed',
@@ -848,8 +862,8 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
       ) => {
         const modelsToTry =
           Date.now() < primaryCooldownUntil
-            ? (['gemini-1.5-flash'] as const)
-            : (['gemini-2.5-flash', 'gemini-1.5-flash'] as const);
+            ? (['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'] as const)
+            : (['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'] as const);
         let lastErr: unknown;
         for (const modelName of modelsToTry) {
           try {
@@ -860,7 +874,7 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
                 config: {
                   systemInstruction,
                   tools: [{ functionDeclarations: GEOAGRI_FUNCTION_DECLARATIONS }],
-                  ...(modelName.includes('2.5')
+                  ...(modelName.includes('2.5') || modelName.includes('3.8') || modelName.includes('hydrogen')
                     ? {
                         thinkingConfig: {
                           thinkingLevel: thinking,
@@ -878,15 +892,17 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
               msg.includes('429') ||
               msg.includes('RESOURCE_EXHAUSTED') ||
               msg.toLowerCase().includes('quota') ||
-              msg.includes('timeout');
-            if (modelName === 'gemini-2.5-flash' && (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED'))) {
+              msg.includes('timeout') ||
+              msg.includes('404') ||
+              msg.includes('NOT_FOUND');
+            if (modelName === 'gemini-4-hydrogen' && (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED'))) {
               primaryCooldownUntil = Date.now() + 10 * 60 * 1000;
             }
             if (!isQuotaOrRateLimit || modelName === modelsToTry[modelsToTry.length - 1]) {
               throw err;
             }
             console.warn(
-              `Primary model ${modelName} hit quota/rate-limit, switching to gemini-1.5-flash.`
+              `Model ${modelName} hit quota/rate-limit or not found, falling back to next model.`
             );
           }
         }
