@@ -40,6 +40,11 @@ import {
 import { evaluateAdvisorAgenticTurn } from '../utils/advisorCommandEngine';
 import { AdvisorSiteInventory } from '../utils/advisorToolMapper';
 import {
+  callGeminiDirect,
+  hasGeminiApiKey,
+  transcribeAudioDirect,
+} from '../services/geminiService';
+import {
   SpeechResultListLike,
   combineVoiceTranscript,
   extractTranscriptFromResults,
@@ -538,15 +543,72 @@ export function useAdvisorChat({
     let executedActions: AdvisorSiteAction[] = plan.actions;
     let finalWidgets: AdvisorInlineWidgetType[] = [...plan.inlineWidgets];
 
-    try {
-      const res = await fetch('/api/advisor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(activeAttachment ? 45000 : 32000),
-        body: JSON.stringify({
+    const farmContextPayload = hasActiveZones
+      ? {
+          hasActiveZones: true,
+          zoneName: isAr ? zoneNameAr : zoneNameEn,
+          coordinates: centroid,
+          areaFeddans: area.feddans,
+          areaQirats: area.qirats,
+          hectares: area.hectares,
+          activeCrop:
+            customCropLabel ||
+            (isAr ? activeCropObj.nameAr : activeCropObj.nameEn),
+          growthStage: {
+            stageName: isAr ? growthStage.stageNameAr : growthStage.stageNameEn,
+            accumulatedGDD: growthStage.accumulatedGDD,
+            targetTotalGDD: growthStage.targetTotalGDD,
+            completionPct: growthStage.completionPct,
+            kc: growthStage.cropCoefficientKc,
+          },
+          soil,
+          farmAverages,
+          subZones: subZones.map((z) => ({
+            id: z.id,
+            areaFeddans: z.areaFeddans,
+            ndvi: z.ndvi,
+            ndwi: z.ndwi,
+            savi: z.savi,
+            lstCelsius: z.lstCelsius,
+            soilMoisturePct: z.soilMoisturePct,
+            soilMoistureDeepPct: z.soilMoistureDeepPct,
+            salinityEC: z.salinityEC,
+            soilPh: z.soilPh,
+          })),
+          next7DaysForecast: forecast14.slice(0, 7),
+          topRecommendedCrops: topCrops.slice(0, 3).map((c) => ({
+            name: isAr ? c.crop.nameAr : c.crop.nameEn,
+            score: c.suitabilityScore,
+            grade: c.gradeLabel,
+            netIrrigationM3: c.netIrrigationRequiredM3PerFeddan,
+            expectedYieldTonPerFeddan: c.expectedYieldTonPerFeddan,
+          })),
+          regionalPestRisks: regionalPestRisks.map((p) => ({
+            name: isAr ? p.nameAr : p.nameEn,
+            riskScore: p.riskScore,
+            prevalencePct: p.regionalPrevalencePct,
+          })),
+          totalZonesCount: zones.length,
+        }
+      : {
+          hasActiveZones: false,
+          mode: 'general_agronomic_guidance_with_site_control',
+        };
+
+    let geminiLiveSuccess = false;
+
+    // 1. Direct browser-to-Gemini API call (Gemini 2.5 Flash / 1.5 Flash) if API key is stored
+    if (hasGeminiApiKey()) {
+      try {
+        const geminiRes = await callGeminiDirect({
           prompt: effectivePrompt,
           language,
           siteInventory,
+          farmContext: farmContextPayload,
+          conversationHistory: messages.slice(-8).map((m) => ({
+            sender: m.sender,
+            text: m.text,
+          })),
           attachment: activeAttachment
             ? {
                 mediaType: activeAttachment.mediaType,
@@ -555,100 +617,101 @@ export function useAdvisorChat({
                 fileName: activeAttachment.fileName,
               }
             : undefined,
-          conversationHistory: messages.slice(-8).map((m) => ({
-            sender: m.sender,
-            text: m.text,
-          })),
-          farmContext: hasActiveZones
-            ? {
-                hasActiveZones: true,
-                zoneName: isAr ? zoneNameAr : zoneNameEn,
-                coordinates: centroid,
-                areaFeddans: area.feddans,
-                areaQirats: area.qirats,
-                hectares: area.hectares,
-                activeCrop:
-                  customCropLabel ||
-                  (isAr ? activeCropObj.nameAr : activeCropObj.nameEn),
-                growthStage: {
-                  stageName: isAr ? growthStage.stageNameAr : growthStage.stageNameEn,
-                  accumulatedGDD: growthStage.accumulatedGDD,
-                  targetTotalGDD: growthStage.targetTotalGDD,
-                  completionPct: growthStage.completionPct,
-                  kc: growthStage.cropCoefficientKc,
-                },
-                soil,
-                farmAverages,
-                subZones: subZones.map((z) => ({
-                  id: z.id,
-                  areaFeddans: z.areaFeddans,
-                  ndvi: z.ndvi,
-                  ndwi: z.ndwi,
-                  savi: z.savi,
-                  lstCelsius: z.lstCelsius,
-                  soilMoisturePct: z.soilMoisturePct,
-                  soilMoistureDeepPct: z.soilMoistureDeepPct,
-                  salinityEC: z.salinityEC,
-                  soilPh: z.soilPh,
-                })),
-                next7DaysForecast: forecast14.slice(0, 7),
-                topRecommendedCrops: topCrops.slice(0, 3).map((c) => ({
-                  name: isAr ? c.crop.nameAr : c.crop.nameEn,
-                  score: c.suitabilityScore,
-                  grade: c.gradeLabel,
-                  netIrrigationM3: c.netIrrigationRequiredM3PerFeddan,
-                  expectedYieldTonPerFeddan: c.expectedYieldTonPerFeddan,
-                })),
-                regionalPestRisks: regionalPestRisks.map((p) => ({
-                  name: isAr ? p.nameAr : p.nameEn,
-                  riskScore: p.riskScore,
-                  prevalencePct: p.regionalPrevalencePct,
-                })),
-                totalZonesCount: zones.length,
-              }
-            : {
-                hasActiveZones: false,
-                mode: 'general_agronomic_guidance_with_site_control',
-              },
-        }),
-      });
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.mode === 'gemini_live') {
+        if (geminiRes) {
           sourceMode = 'gemini_live';
-          const liveToolActions: AdvisorSiteAction[] = Array.isArray(data.toolActions)
-            ? data.toolActions
-            : [];
-          const liveWidgets: AdvisorInlineWidgetType[] = Array.isArray(data.inlineWidgets)
-            ? data.inlineWidgets
-            : [];
-
-          if (liveToolActions.length > 0) {
-            executedActions = liveToolActions;
-            finalWidgets = [...liveWidgets];
+          geminiLiveSuccess = true;
+          if (geminiRes.toolActions.length > 0) {
+            executedActions = geminiRes.toolActions;
+            finalWidgets = [...geminiRes.inlineWidgets];
             if (forcedWidget && !finalWidgets.includes(forcedWidget)) {
               finalWidgets.push(forcedWidget);
             }
-          } else if (data.text) {
+          } else if (geminiRes.text) {
             executedActions = [];
             finalWidgets = forcedWidget ? [forcedWidget] : [];
-            for (const w of liveWidgets) {
+            for (const w of geminiRes.inlineWidgets) {
               if (!finalWidgets.includes(w)) finalWidgets.push(w);
             }
           }
-
-          if (data.text) {
-            replyText = data.text;
-          } else if (liveToolActions.length > 0) {
-            replyText = liveToolActions
+          if (geminiRes.text) {
+            replyText = geminiRes.text;
+          } else if (geminiRes.toolActions.length > 0) {
+            replyText = geminiRes.toolActions
               .map((a) => `✅ ${isAr ? a.summaryAr : a.summaryEn}`)
               .join('\n');
           }
         }
+      } catch (err) {
+        console.warn('Gemini direct call encountered error, proceeding to backend fallback:', err);
       }
-    } catch {
-      // Fallback seamlessly to local deterministic plan & replyText
+    }
+
+    // 2. Node server API fallback (/api/advisor) if not resolved by direct Gemini call
+    if (!geminiLiveSuccess) {
+      try {
+        const res = await fetch('/api/advisor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(activeAttachment ? 45000 : 32000),
+          body: JSON.stringify({
+            prompt: effectivePrompt,
+            language,
+            siteInventory,
+            attachment: activeAttachment
+              ? {
+                  mediaType: activeAttachment.mediaType,
+                  mimeType: activeAttachment.mimeType,
+                  base64Data: activeAttachment.base64Data,
+                  fileName: activeAttachment.fileName,
+                }
+              : undefined,
+            conversationHistory: messages.slice(-8).map((m) => ({
+              sender: m.sender,
+              text: m.text,
+            })),
+            farmContext: farmContextPayload,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.mode === 'gemini_live') {
+            sourceMode = 'gemini_live';
+            const liveToolActions: AdvisorSiteAction[] = Array.isArray(data.toolActions)
+              ? data.toolActions
+              : [];
+            const liveWidgets: AdvisorInlineWidgetType[] = Array.isArray(data.inlineWidgets)
+              ? data.inlineWidgets
+              : [];
+
+            if (liveToolActions.length > 0) {
+              executedActions = liveToolActions;
+              finalWidgets = [...liveWidgets];
+              if (forcedWidget && !finalWidgets.includes(forcedWidget)) {
+                finalWidgets.push(forcedWidget);
+              }
+            } else if (data.text) {
+              executedActions = [];
+              finalWidgets = forcedWidget ? [forcedWidget] : [];
+              for (const w of liveWidgets) {
+                if (!finalWidgets.includes(w)) finalWidgets.push(w);
+              }
+            }
+
+            if (data.text) {
+              replyText = data.text;
+            } else if (liveToolActions.length > 0) {
+              replyText = liveToolActions
+                .map((a) => `✅ ${isAr ? a.summaryAr : a.summaryEn}`)
+                .join('\n');
+            }
+          }
+        }
+      } catch {
+        // Fallback seamlessly to local deterministic plan & replyText
+      }
     }
 
     // Apply chat-local & pest-radar mutations immediately, and forward app-level actions to App.tsx
@@ -1154,26 +1217,42 @@ export function useAdvisorChat({
             reader.readAsDataURL(blob);
           });
 
-          const resp = await fetch('/api/transcribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(25000),
-            body: JSON.stringify({
-              audioBase64: base64Audio,
-              mimeType,
-              language,
-            }),
-          });
+          let transcript = '';
 
-          if (resp.ok) {
-            const data = await resp.json();
-            const transcript = typeof data?.transcript === 'string' ? data.transcript.trim() : '';
-            if (transcript) {
-              const combined = combineVoiceTranscript(prefixTextRef.current, transcript);
-              setInputVal(combined);
-              void sendQueryRef.current(combined);
-              return;
+          if (hasGeminiApiKey()) {
+            try {
+              const directTranscript = await transcribeAudioDirect(base64Audio, mimeType, language);
+              if (directTranscript) {
+                transcript = directTranscript;
+              }
+            } catch (err) {
+              console.warn('Direct audio transcription failed, trying /api/transcribe fallback:', err);
             }
+          }
+
+          if (!transcript) {
+            const resp = await fetch('/api/transcribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: AbortSignal.timeout(25000),
+              body: JSON.stringify({
+                audioBase64: base64Audio,
+                mimeType,
+                language,
+              }),
+            });
+
+            if (resp.ok) {
+              const data = await resp.json();
+              transcript = typeof data?.transcript === 'string' ? data.transcript.trim() : '';
+            }
+          }
+
+          if (transcript) {
+            const combined = combineVoiceTranscript(prefixTextRef.current, transcript);
+            setInputVal(combined);
+            void sendQueryRef.current(combined);
+            return;
           }
 
           if (previewFallback) {

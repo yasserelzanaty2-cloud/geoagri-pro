@@ -9,6 +9,7 @@ import {
   HelpCircle,
   ImagePlus,
   Info,
+  Key,
   Loader2,
   MapPin,
   Maximize2,
@@ -52,6 +53,8 @@ import {
 } from './AdvisorRichMessage';
 import { RiskMetricsExplainerModal } from './RiskMetricsExplainerModal';
 import { AdvisorRiskInfoModal } from './AdvisorRiskInfoModal';
+import { GeminiApiKeyModal } from './GeminiApiKeyModal';
+import { hasGeminiApiKey } from '../services/geminiService';
 
 interface AdvisorConsultantViewProps {
   language: Language;
@@ -173,6 +176,7 @@ export const AdvisorConsultantView: React.FC<AdvisorConsultantViewProps> = ({
   const [infoModalState, setInfoModalState] = useState<{
     isOpen: boolean;
   } & Partial<RiskInfoModalPayload>>({ isOpen: false });
+  const [showGeminiModal, setShowGeminiModal] = useState<boolean>(false);
 
   const renderMetricInfoTrigger = (
     keyId: string,
@@ -349,6 +353,33 @@ export const AdvisorConsultantView: React.FC<AdvisorConsultantViewProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowGeminiModal(true)}
+              title={isAr ? 'إعدادات ذكاء Google Gemini 2.5 Flash' : 'Google Gemini 2.5 Flash Settings'}
+              className={`min-h-[34px] px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                hasGeminiApiKey()
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-emerald-500/40'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="hidden sm:inline">
+                {hasGeminiApiKey()
+                  ? isAr
+                    ? 'Gemini 2.5 Flash'
+                    : 'Gemini 2.5 Flash'
+                  : isAr
+                  ? 'تفعيل Gemini'
+                  : 'Gemini AI'}
+              </span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  hasGeminiApiKey() ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
+                }`}
+              />
+            </button>
+
             {(hasActiveZones || checklist.length > 0) && (
               <button
                 type="button"
@@ -1113,6 +1144,12 @@ export const AdvisorConsultantView: React.FC<AdvisorConsultantViewProps> = ({
         yieldLossWithoutActionPct={infoModalState.yieldLossWithoutActionPct}
         mitigatedRecoveryPct={infoModalState.mitigatedRecoveryPct}
         onClose={() => setInfoModalState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <GeminiApiKeyModal
+        isOpen={showGeminiModal}
+        language={language}
+        onClose={() => setShowGeminiModal(false)}
       />
     </section>
   );

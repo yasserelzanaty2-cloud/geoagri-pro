@@ -368,7 +368,7 @@ async function startServer() {
           : 'فرّغ الكلام المنطوق في هذا المقطع الصوتي بدقة تامة كلمة بكلمة كما قيل بالضبط (سواء باللهجة المصرية أو العربية الفصحى أو الإنجليزية، بما في ذلك المصطلحات الزراعية والتقنية مثل GeoAgri وNDVI وEC وpH). أعد النص المُفرّغ فقط بدون أي مقدمات أو شروحات أو تخمين كلمات غير منطوقة.';
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-transcribe',
+        model: 'gemini-2.5-flash',
         contents: {
           parts: [
             {
@@ -839,8 +839,8 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
       ) => {
         const modelsToTry =
           Date.now() < primaryCooldownUntil
-            ? (['gemini-3.1-flash-lite'] as const)
-            : (['gemini-4-hydrogen', 'gemini-3.1-flash-lite'] as const);
+            ? (['gemini-1.5-flash'] as const)
+            : (['gemini-2.5-flash', 'gemini-1.5-flash'] as const);
         let lastErr: unknown;
         for (const modelName of modelsToTry) {
           try {
@@ -851,12 +851,16 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
                 config: {
                   systemInstruction,
                   tools: [{ functionDeclarations: GEOAGRI_FUNCTION_DECLARATIONS }],
-                  thinkingConfig: {
-                    thinkingLevel: thinking,
-                  },
+                  ...(modelName.includes('2.5')
+                    ? {
+                        thinkingConfig: {
+                          thinkingLevel: thinking,
+                        },
+                      }
+                    : {}),
                 },
               }),
-              12000
+              15000
             );
           } catch (err) {
             lastErr = err;
@@ -866,14 +870,14 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
               msg.includes('RESOURCE_EXHAUSTED') ||
               msg.toLowerCase().includes('quota') ||
               msg.includes('timeout');
-            if (modelName === 'gemini-4-hydrogen' && (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED'))) {
+            if (modelName === 'gemini-2.5-flash' && (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED'))) {
               primaryCooldownUntil = Date.now() + 10 * 60 * 1000;
             }
             if (!isQuotaOrRateLimit || modelName === modelsToTry[modelsToTry.length - 1]) {
               throw err;
             }
             console.warn(
-              `Primary model ${modelName} hit quota/rate-limit, switching to gemini-3.1-flash-lite.`
+              `Primary model ${modelName} hit quota/rate-limit, switching to gemini-1.5-flash.`
             );
           }
         }

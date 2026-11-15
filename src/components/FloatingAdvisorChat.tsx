@@ -6,6 +6,7 @@ import {
   ChevronUp,
   Film,
   ImagePlus,
+  Key,
   Loader2,
   MapPin,
   Mic,
@@ -33,6 +34,8 @@ import {
 } from './AdvisorRichMessage';
 import { RiskMetricsExplainerModal } from './RiskMetricsExplainerModal';
 import { AdvisorRiskInfoModal } from './AdvisorRiskInfoModal';
+import { GeminiApiKeyModal } from './GeminiApiKeyModal';
+import { hasGeminiApiKey } from '../services/geminiService';
 
 interface FloatingAdvisorChatProps {
   isOpen: boolean;
@@ -131,6 +134,7 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
   const [infoModalState, setInfoModalState] = useState<{
     isOpen: boolean;
   } & Partial<RiskInfoModalPayload>>({ isOpen: false });
+  const [showGeminiModal, setShowGeminiModal] = useState<boolean>(false);
 
   // Keep bubble anchored in the bottom-right corner on resize until the user manually drags it
   useEffect(() => {
@@ -316,6 +320,33 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowGeminiModal(true)}
+                  title={isAr ? 'إعدادات ذكاء Google Gemini 2.5 Flash' : 'Google Gemini 2.5 Flash Settings'}
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition ${
+                    hasGeminiApiKey()
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-emerald-500/40'
+                  }`}
+                >
+                  <Key className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="hidden sm:inline">
+                    {hasGeminiApiKey()
+                      ? isAr
+                        ? 'Gemini 2.5 Flash'
+                        : 'Gemini 2.5 Flash'
+                      : isAr
+                      ? 'تفعيل Gemini'
+                      : 'Gemini AI'}
+                  </span>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      hasGeminiApiKey() ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
+                    }`}
+                  />
+                </button>
+
                 <button
                   type="button"
                   data-testid="floating-chat-toggle-chips-btn"
@@ -696,6 +727,12 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
         yieldLossWithoutActionPct={infoModalState.yieldLossWithoutActionPct}
         mitigatedRecoveryPct={infoModalState.mitigatedRecoveryPct}
         onClose={() => setInfoModalState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <GeminiApiKeyModal
+        isOpen={showGeminiModal}
+        language={language}
+        onClose={() => setShowGeminiModal(false)}
       />
     </>
   );
