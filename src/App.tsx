@@ -19,6 +19,7 @@ import {
   Menu,
   Moon,
   PlusCircle,
+  Satellite,
   Sprout,
   Sun,
   X,
@@ -104,6 +105,7 @@ import { WeatherForecastView } from './components/WeatherForecastView';
 import { CropRecommenderView } from './components/CropRecommenderView';
 import { AdvisorConsultantView } from './components/AdvisorConsultantView';
 import { FloatingAdvisorChat } from './components/FloatingAdvisorChat';
+import { SpaceDataSourcesModal } from './components/SpaceDataSourcesModal';
 import { useAdvisorChat } from './hooks/useAdvisorChat';
 
 const DEFAULT_SOIL_PROFILE: SoilProfile = {
@@ -128,6 +130,7 @@ export default function App() {
   const [isDomainAuthModalOpen, setIsDomainAuthModalOpen] = useState<boolean>(false);
   const [domainModalHost, setDomainModalHost] = useState<string>('yasserelzanaty2-cloud.github.io');
   const [domainCopied, setDomainCopied] = useState<boolean>(false);
+  const [showSpaceDataModal, setShowSpaceDataModal] = useState<boolean>(false);
 
   // Multi-Zone State: Hydrated immediately from local persistence so page refresh never loses active farm
   const [zones, setZones] = useState<UserStudyZone[]>(initialPersistedState.zones);
@@ -1398,6 +1401,8 @@ export default function App() {
         void syncLiveWeatherAndClimatology(centroid);
       } else if (act.type === 'CLOSE_FULLSCREEN_CHAT') {
         setIsFloatingChatOpen(false);
+      } else if (act.type === 'OPEN_SPACE_DATA_CATALOG') {
+        setShowSpaceDataModal(true);
       }
     }
   };
@@ -1622,6 +1627,19 @@ export default function App() {
 
             <button
               type="button"
+              data-testid="space-data-catalog-btn"
+              onClick={() => setShowSpaceDataModal(true)}
+              title={isAr ? 'مصادر بيانات NASA والفضاء الرسمية (24 منظومة)' : 'Official NASA & Space Agency Data Foundations (24 Datasets)'}
+              aria-label={isAr ? 'مصادر بيانات NASA والفضاء الرسمية' : 'Official NASA & Space Agency Data Foundations'}
+              className="min-h-[44px] lg:min-h-[38px] px-2 sm:px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-500/40 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer shadow-sm shadow-emerald-600/10"
+            >
+              <Satellite className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="hidden sm:inline">{isAr ? 'بيانات NASA' : 'NASA Data'}</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-emerald-600 text-white font-bold leading-none">24</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setDarkMode(!darkMode)}
               aria-label={isAr ? 'تبديل الوضع الليلي' : 'Toggle Dark Mode'}
               className="min-h-[44px] min-w-[44px] lg:min-h-[38px] lg:min-w-[38px] p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer shrink-0"
@@ -1682,8 +1700,24 @@ export default function App() {
               );
             })}
 
-            {hasActiveStudyArea && (
-              <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800">
+            <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800 space-y-1.5">
+              <button
+                type="button"
+                data-testid="mobile-nav-space-data"
+                onClick={() => {
+                  setShowSpaceDataModal(true);
+                  setMobileNavOpen(false);
+                }}
+                className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-sm font-bold flex items-center justify-between gap-2 border border-emerald-500/30 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Satellite className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>{isAr ? 'مصادر بيانات NASA والفضاء الرسمية' : 'NASA & Space Agency Data'}</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-mono bg-emerald-600 text-white font-bold">24</span>
+              </button>
+
+              {hasActiveStudyArea && (
                 <button
                   type="button"
                   data-testid="mobile-nav-download-pdf"
@@ -1698,8 +1732,8 @@ export default function App() {
                     {isAr ? 'تصدير تقرير PDF للمزرعة النشطة' : 'Export Active Farm PDF Report'}
                   </span>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </nav>
         </>
       )}
@@ -2334,6 +2368,12 @@ export default function App() {
           setActiveTab('atlas');
         }}
         onAdoptCrop={(cropId, customLabel) => handleChangeCurrentCrop(cropId, customLabel)}
+      />
+
+      <SpaceDataSourcesModal
+        isOpen={showSpaceDataModal}
+        onClose={() => setShowSpaceDataModal(false)}
+        language={language}
       />
     </div>
   );

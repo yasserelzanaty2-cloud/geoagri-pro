@@ -656,12 +656,21 @@ async function startServer() {
           exportPdfReport: { type: Type.BOOLEAN },
           clearChat: { type: Type.BOOLEAN },
           closeFullscreenChat: { type: Type.BOOLEAN },
+          openSpaceDataCatalog: { type: Type.BOOLEAN, description: 'Open NASA and Partner Space Agency Data Foundations catalog' },
           showInlineWidget: {
             type: Type.STRING,
             description:
               'pest_radar, weekly_checklist, spectral_subzones, irrigation_npk, crop_mcda, or zone_action_card',
           },
         },
+      },
+    },
+    {
+      name: 'open_space_data_catalog',
+      description: 'Opens the interactive NASA and Partner Space Agency Data Foundations catalog modal displaying all 24 authoritative datasets with direct portal links.',
+      parameters: {
+        type: Type.OBJECT,
+        properties: {},
       },
     },
   ];

@@ -1108,6 +1108,15 @@ export function mapGeminiToolCallsToSiteActions(
           notes.push('fullscreen chat closed');
         }
 
+        if (boolVal(args.openSpaceDataCatalog)) {
+          toolActions.push({
+            type: 'OPEN_SPACE_DATA_CATALOG',
+            summaryAr: 'تم فتح دليل بيانات ناسا ووكالات الفضاء المعتمدة (24 منظومة فضائية وعلمية)',
+            summaryEn: 'Opened official NASA & Space Agency Data Foundations catalog (24 sources)',
+          });
+          notes.push('space data catalog opened');
+        }
+
         const widgetReq = strVal(args.showInlineWidget) as AdvisorInlineWidgetType;
         if (
           widgetReq &&
@@ -1130,6 +1139,23 @@ export function mapGeminiToolCallsToSiteActions(
           response: {
             ok: notes.length > 0,
             result: notes.length > 0 ? `Executed: ${notes.join(', ')}.` : 'No preference flags specified.',
+          },
+        });
+        break;
+      }
+
+      case 'open_space_data_catalog': {
+        toolActions.push({
+          type: 'OPEN_SPACE_DATA_CATALOG',
+          summaryAr: 'تم فتح دليل بيانات ناسا ووكالات الفضاء المعتمدة (24 منظومة فضائية وعلمية)',
+          summaryEn: 'Opened official NASA & Partner Space Agency Data Foundations catalog (24 sources)',
+        });
+        functionResponses.push({
+          id: call.id,
+          name,
+          response: {
+            ok: true,
+            result: 'Opened NASA & Space Agency Data Foundations catalog with 24 authoritative datasets.',
           },
         });
         break;

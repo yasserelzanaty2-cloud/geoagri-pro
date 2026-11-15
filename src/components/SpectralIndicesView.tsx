@@ -300,6 +300,21 @@ export const SpectralIndicesView: React.FC<SpectralIndicesViewProps> = ({
                 ? `التحليل الطيفي للحدود المرسومة (${area ? `${area.feddans} فدان ${area.qirats} قيراط · ` : ''}${cropNameAr})`
                 : `Spectral Diagnostics — Drawn Boundary (${area ? `${area.feddans} fed · ` : ''}${cropNameEn})`}
             </h2>
+
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                🛰️ Copernicus Sentinel-2 (10m)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-100 dark:bg-cyan-950/70 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800">
+                🛰️ USGS/NASA Landsat 8/9 (30m)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                🌡️ ISS ECOSTRESS LST (70m)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+                🌱 USDA CropScape / CDL
+              </span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="text-xs font-mono text-slate-600 dark:text-slate-400">

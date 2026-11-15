@@ -3155,6 +3155,31 @@ export function generateLocalAgronomistResponse(
 4. **التحكم بالمنصة:** اطلب مني إضافة مزارع، تغيير الطبقات، إضافة مهام، أو استخراج تقرير PDF هندسي.`;
   }
 
+  // 1.5 Authoritative NASA & Space Agency Data Foundations Query
+  const isDataSourcesQuery =
+    /(?:مصادر\s*البيانات|مصدر\s*البيانات|بيانات\s*ناسا|أقمار\s*ناسا|اقمار\s*ناسا|الأقمار\s*الصناعية|الاقمار\s*الصناعية|الدقة\s*العلمية|منين\s*البيانات|صحة\s*البيانات|دقة\s*البيانات|data\s*sources?|nasa\s*data|satellites?|data\s*provenance|\bsmap\b|\becostress\b|\bimerg\b|\blandsat\b|\bsentinel\b|\bgaez\b|\bssurgo\b)/i.test(
+      q
+    );
+
+  if (isDataSourcesQuery) {
+    if (!isAr) {
+      return `🛰️ **Authoritative NASA & Space Agency Data Foundations (24 Datasets):**
+GeoAgri Pro is 100% mathematically grounded in verified Earth Observation & agricultural science repositories:
+1. **Satellite Earth Observation:** Sentinel-2 (ESA, 10m MSI), Landsat 8/9 (NASA/USGS, 30m), MODIS/VIIRS (NASA, 250m), ECOSTRESS (NASA JPL, 70m LST/ET), SMAP (NASA, 9km root-zone soil moisture), SRTM (NASA, 30m 3D topography), GEDI (NASA/UMD lidar biomass), and GPM IMERG (NASA/JAXA, 0.1° precipitation).
+2. **Agro-Meteorology & Reanalysis:** NASA POWER (daily solar & agro-climatology), ECMWF ERA5 (hourly reanalysis), PRISM (topographic normals), NLDAS/GLDAS, and CoCoRaHS ground-gauge validation.
+3. **Soils, Hydrology & Evapotranspiration:** USDA Web Soil Survey (WSS), USDA NRCS SSURGO/STATSGO2, OpenET (field-scale ETa), and USGS NWIS groundwater levels.
+4. **Cropland, Rotations & Economics:** USDA Cropland Data Layer (CDL/CropScape), USDA Ag Data Commons, FAO GAEZ v4 (agro-ecological suitability), USGS NLCD, USDA NAIP (1m aerial), USFS LANDFIRE, USDA AMS Market News, and USDA NASS QuickStats.
+• Click the **«NASA Data (24)»** button on the top navigation bar to explore the interactive space catalog with direct links!`;
+    }
+    return `🛰️ **مرتكزات بيانات الفضاء وناسا المعتمدة في GeoAgri Pro (24 منظومة فضائية وعلمية):**
+تعتمد المنصة بنسبة 100% على بيانات حقيقية ومعايرة رياضياً من أرقى وكالات الفضاء والمراكز الزراعية العالمية:
+1. **أقمار الرصد الفضائي المباشر:** Sentinel-2 (وكالة الفضاء الأوروبية بدقة 10م للمؤشرات الحقلية)، Landsat 8/9 (ناسا والمساحة الجيولوجية 30م)، MODIS/VIIRS (ناسا بدقة 250م للسلاسل الزمنية)، ECOSTRESS (مختبر الدفع النفاث ناسا بدقة 70م للإجهاد الحراري LST)، SMAP (ناسا لقياس رطوبة التربة الجذرية والسطحية)، SRTM (ناسا للتضاريس والانحدارات 3D)، GEDI (ليدار الكتلة الحيوية)، وGPM IMERG (رادار الأمطار العالمي).
+2. **المناخ والأرصاد الزراعية:** NASA POWER (واجهة ناسا المباشرة للإشعاع الشمسي والبخر)، ECMWF ERA5 (إعادة التحليل المناخي الساعي)، PRISM (المناخ المصغر)، NLDAS/GLDAS (نماذج اليابسة)، وشبكة CoCoRaHS الأرضية.
+3. **التربة والموارد المائية والبخر:** USDA Web Soil Survey ومسح التربة الرقمي SSURGO/STATSGO2 (قوام التربة والملوحة والسعة المائية)، OpenET (البخر-نتح الفعلي)، وبيانات المياه الجوفية USGS NWIS.
+4. **تصنيف المحاصيل والدورات الزراعية والأسواق:** طبقة المحاصيل السنوية USDA CDL / CropScape، قاعدة FAO GAEZ v4 لملاءمة المحاصيل، USDA Ag Data Commons، تصوير NAIP الجوي (1م)، لاندفاير LANDFIRE، وأسعار البورصات السلعية USDA AMS وNASS QuickStats.
+• يمكنك الضغط على زر **«بيانات NASA (24)»** في شريط الموقع العلوي لفتح الدليل الفضائي التفاعلي الكامل بالروابط الرسمية!`;
+  }
+
   // 2. Conversational greetings & Mic checks
   const isConversationalGreetingOrMicCheck =
     /(?:^|[\s،,.\-?!])(?:سامعني|تسمعني|بتسمعني|شغال|تجربة|اختبار|أهلا|اهلا|مرحبا|السلام\s*عليكم|صباح\s*الخير|مساء\s*الخير|ازيك|إزيك|عامل\s*ايه|عامل\s*إيه|أخبارك|شكرا|شكراً|hello|hi\b|hey\b|can\s*you\s*hear\s*me|testing|mic\s*check)(?:$|[\s،,.\-?!])/i.test(

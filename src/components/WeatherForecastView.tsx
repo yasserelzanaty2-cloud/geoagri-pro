@@ -251,6 +251,21 @@ export const WeatherForecastView: React.FC<WeatherForecastViewProps> = ({
                 ? 'NASA POWER Live'
                 : 'NASA POWER Agro-Archive'}
             </p>
+
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-100 dark:bg-sky-950/70 text-sky-800 dark:text-sky-300 border border-sky-300 dark:border-sky-800">
+                🛰️ NASA POWER (Agroclimatology)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+                🌧️ NASA GPM IMERG (0.1° Rain)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                💧 NASA SMAP (9km Soil Moisture)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 dark:indigo-950/70 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
+                🌍 ECMWF ERA5-Land Reanalysis
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">

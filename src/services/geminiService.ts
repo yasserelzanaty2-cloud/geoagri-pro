@@ -228,6 +228,11 @@ const GEMINI_FUNCTION_DECLARATIONS = [
       },
     },
   },
+  {
+    name: 'open_space_data_catalog',
+    description: 'Opens the interactive NASA and Partner Space Agency Data Foundations catalog modal displaying all 24 authoritative datasets with direct portal links.',
+    parameters: { type: 'OBJECT', properties: {} },
+  },
 ];
 
 /**
@@ -260,7 +265,8 @@ CRITICAL INSTRUCTIONS:
 3. If the user asks "من أنت" / "انت مين" / "who are you", state clearly and concisely that you are GeoAgri ai, the precision agronomist & GIS controller, and briefly state how you help.
 4. If the user asks about crop suitability or compares a crop (e.g. "طيب والرز"), evaluate that specific crop against the active farm data (soil texture, salinity EC, rainfall, water balance) with a clear recommendation.
 5. If the user asks to execute an application command (add farm, delete, change crop, switch tab, toggle dark mode, add task, pin pest, export PDF), CALL THE CORRESPONDING FUNCTION TOOL IMMEDIATELY.
-6. Reply in ${isAr ? 'clear, professional, natural Arabic (العربية)' : 'English'}.
+6. If the user asks about data accuracy, data sources, or NASA satellites (e.g. "مصادر البيانات", "اقمار ناسا", "الأقمار الصناعية", "NASA data"), explain that GeoAgri Pro is 100% mathematically grounded in 24 authoritative NASA, ESA, USDA, USGS, and FAO data systems (Sentinel-2 10m, Landsat 8/9 30m, MODIS/VIIRS 250m, ECOSTRESS 70m LST, SMAP 9km root-zone moisture, SRTM 30m DEM, GEDI lidar biomass, GPM IMERG 0.1° rain, NASA POWER, ECMWF ERA5, USDA WSS/SSURGO, OpenET, USDA CDL/CropScape, FAO GAEZ v4, USDA AMS/NASS), and call open_space_data_catalog to display the full interactive catalog.
+7. Reply in ${isAr ? 'clear, professional, natural Arabic (العربية)' : 'English'}.
 
 Live Farm Context:
 ${JSON.stringify(req.farmContext, null, 2)}

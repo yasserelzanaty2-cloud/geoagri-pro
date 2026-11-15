@@ -1279,6 +1279,19 @@ export function evaluateAdvisorAgenticTurn(
     });
   }
 
+  // Space & NASA Data Catalog command
+  if (
+    /(?:افتح|اعرض|وريني|اظهر|أظهر|شغل)\s*(?:دليل|كتالوج|قائمة|مصادر)?\s*(?:بيانات\s*ناسا|أقمار\s*ناسا|اقمار\s*ناسا|بيانات\s*الفضاء|وكالات\s*الفضاء|المصادر\s*الفضائية|space\s*data|nasa\s*catalog)/i.test(
+      normalizedPrompt
+    )
+  ) {
+    actions.push({
+      type: 'OPEN_SPACE_DATA_CATALOG',
+      summaryAr: 'تم فتح دليل بيانات ناسا ووكالات الفضاء المعتمدة (24 منظومة فضائية وعلمية)',
+      summaryEn: 'Opened official NASA & Partner Space Agency Data Foundations catalog (24 sources)',
+    });
+  }
+
   // -------------------------------------------------------------------------
   // 5. DETECT ON-DEMAND INLINE ANALYTICAL WIDGETS (ONLY WHEN REQUESTED!)
   // -------------------------------------------------------------------------

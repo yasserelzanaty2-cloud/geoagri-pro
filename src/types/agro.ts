@@ -694,6 +694,11 @@ export type AdvisorSiteAction =
       type: 'CLOSE_FULLSCREEN_CHAT';
       summaryAr: string;
       summaryEn: string;
+    }
+  | {
+      type: 'OPEN_SPACE_DATA_CATALOG';
+      summaryAr: string;
+      summaryEn: string;
     };
 
 export interface AdvisorMediaAttachment {
