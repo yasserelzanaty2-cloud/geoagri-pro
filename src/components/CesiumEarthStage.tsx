@@ -159,25 +159,55 @@ function createProceduralFallbackTerrain(): Cesium.TerrainProvider {
 
 function isKnownInlandSubSeaDepression(lat: number, lng: number): boolean {
   const nLng = ((((lng + 180) % 360) + 360) % 360) - 180;
-  // All of Egypt's Nile Delta (including Damietta & Port Said), Nile Valley, Faiyum, Qattara, Siwa, Wadi El Natrun, and North Sinai inland of the Mediterranean shoreline
+  // All of Egypt: Nile Delta, Nile Valley, Faiyum, Qattara, Siwa, Dakhla, Kharga, Farafra, Toshka, Western & Eastern Deserts & Sinai
   if (
-    lat >= 28.2 &&
-    lat <= 31.66 &&
-    nLng >= 24.95 &&
-    nLng <= 34.35 &&
+    lat >= 21.8 &&
+    lat <= 31.75 &&
+    nLng >= 24.7 &&
+    nLng <= 35.1 &&
+    !isStrictEnclosedSeaAtLatLon(lat, nLng)
+  ) {
+    return true;
+  }
+  // Libya inland depressions & desert basins
+  if (
+    lat >= 19.5 &&
+    lat <= 33.0 &&
+    nLng >= 9.2 &&
+    nLng <= 25.1 &&
+    !isStrictEnclosedSeaAtLatLon(lat, nLng)
+  ) {
+    return true;
+  }
+  // Sudan & Sahara desert basins
+  if (
+    lat >= 8.5 &&
+    lat <= 22.2 &&
+    nLng >= 21.5 &&
+    nLng <= 38.5 &&
+    !isStrictEnclosedSeaAtLatLon(lat, nLng)
+  ) {
+    return true;
+  }
+  // Arabian Peninsula (Saudi Arabia, UAE, Qatar, Oman, Yemen, Kuwait, Iraq, Jordan)
+  if (
+    lat >= 12.0 &&
+    lat <= 33.5 &&
+    nLng >= 35.0 &&
+    nLng <= 60.0 &&
     !isStrictEnclosedSeaAtLatLon(lat, nLng)
   ) {
     return true;
   }
   return (
-    (lat >= 29.8 && lat <= 33.2 && nLng >= 35.1 && nLng <= 35.9) || // Dead Sea & Jordan Valley
-    (lat >= 29.9 && lat <= 32.8 && nLng >= 46.0 && nLng <= 48.8) || // Lower Mesopotamia / Basra plain
-    (lat >= 36.5 && lat <= 47.5 && nLng >= 46.2 && nLng <= 54.8 && !isStrictEnclosedSeaAtLatLon(lat, nLng)) || // Caspian Depression land
-    (lat >= 11.5 && lat <= 14.8 && nLng >= 39.8 && nLng <= 42.2) || // Danakil / Afar Depression
-    (lat >= 42.1 && lat <= 43.4 && nLng >= 88.2 && nLng <= 90.3) || // Turpan Depression
-    (lat >= 32.4 && lat <= 36.9 && nLng >= -117.6 && nLng <= -114.8) || // Death Valley & Salton Trough
-    (lat >= 51.2 && lat <= 53.6 && nLng >= 3.3 && nLng <= 7.2) || // Netherlands & Flemish Polders
-    (lat >= -30.5 && lat <= -27.5 && nLng >= 136.5 && nLng <= 138.5) // Lake Eyre Basin
+    (lat >= 29.8 && lat <= 33.5 && nLng >= 35.0 && nLng <= 36.2) || // Dead Sea & Jordan Valley
+    (lat >= 29.5 && lat <= 33.5 && nLng >= 44.0 && nLng <= 49.0) || // Lower Mesopotamia / Basra plain
+    (lat >= 36.0 && lat <= 48.0 && nLng >= 45.0 && nLng <= 55.0 && !isStrictEnclosedSeaAtLatLon(lat, nLng)) || // Caspian Depression land
+    (lat >= 11.0 && lat <= 15.0 && nLng >= 39.5 && nLng <= 43.0) || // Danakil / Afar Depression
+    (lat >= 41.5 && lat <= 44.0 && nLng >= 87.5 && nLng <= 91.0) || // Turpan Depression
+    (lat >= 32.0 && lat <= 37.5 && nLng >= -118.0 && nLng <= -114.5) || // Death Valley & Salton Trough
+    (lat >= 51.0 && lat <= 54.0 && nLng >= 3.0 && nLng <= 7.5) || // Netherlands & Flemish Polders
+    (lat >= -31.0 && lat <= -27.0 && nLng >= 136.0 && nLng <= 139.0) // Lake Eyre Basin
   );
 }
 
@@ -328,7 +358,7 @@ async function loadTerrariumSubTileData(
   w: number,
   h: number
 ): Promise<Float32Array | null> {
-  const maxDemZ = 5;
+  const maxDemZ = 7;
   const targetZ = Math.min(level, maxDemZ);
 
   // Fast path: check if targetZ or any ancestor z is already decoded in memory (no network needed!)
@@ -351,6 +381,19 @@ async function loadTerrariumSubTileData(
     const parentDem = await fetchDecodedParentTerrariumDem(z, x >> shift, y >> shift);
     if (parentDem) {
       return resampleParentDemBilinear(parentDem, shift, x, y, w, h);
+    }
+  }
+
+  // Any cached ancestor tile down to z=2 as instant offline/low-latency fallback
+  for (let z = targetZ - 2; z >= 2; z--) {
+    const shift = level - z;
+    const ty = y >> shift;
+    const n = Math.pow(2, z);
+    const wx = (((x >> shift) % n) + n) % n;
+    const wy = Math.max(0, Math.min(n - 1, ty));
+    const cached = decodedParentDemCache.get(`${z}/${wx}/${wy}`);
+    if (cached) {
+      return resampleParentDemBilinear(cached, shift, x, y, w, h);
     }
   }
 
@@ -490,13 +533,13 @@ async function fetchDecodedEsriSatelliteRgb(
 
   const p = (async (): Promise<Uint8ClampedArray | null> => {
     try {
-      let rgb = await attemptDownload(7000);
+      let rgb = await attemptDownload(5000);
       if (!rgb) {
         // Automatic retry on transient network timeout so edge tiles never stay uncolored
-        rgb = await attemptDownload(8000);
+        rgb = await attemptDownload(5500);
       }
       if (rgb) {
-        if (decodedEsriSatCache.size > 380) {
+        if (decodedEsriSatCache.size > 600) {
           const oldestKey = decodedEsriSatCache.keys().next().value;
           if (oldestKey) decodedEsriSatCache.delete(oldestKey);
         }
@@ -557,7 +600,7 @@ async function loadEsriSatelliteSubTileRgb(
   const maxSatZ = 16;
   const targetZ = Math.min(level, maxSatZ);
 
-  // Check exact targetZ in memory cache first (never return coarse ancestor tiles that cause blocky squares)
+  // 1. Check exact targetZ in memory cache first
   const exactShift = level - targetZ;
   const exactN = Math.pow(2, targetZ);
   const exactWx = (((x >> exactShift) % exactN) + exactN) % exactN;
@@ -570,6 +613,21 @@ async function loadEsriSatelliteSubTileRgb(
     return resampleEsriSatRgb(cachedExact, exactShift, x, y, w, h);
   }
 
+  // 2. Identify nearest cached ancestor tile (if any) as instant zero-latency fallback
+  let cachedFallback: Uint8ClampedArray | null = null;
+  for (let z = targetZ - 1; z >= 2; z--) {
+    const shift = level - z;
+    const n = Math.pow(2, z);
+    const wx = (((x >> shift) % n) + n) % n;
+    const wy = Math.max(0, Math.min(n - 1, y >> shift));
+    const cached = decodedEsriSatCache.get(`${z}/${wx}/${wy}`);
+    if (cached) {
+      cachedFallback = resampleEsriSatRgb(cached, shift, x, y, w, h);
+      break;
+    }
+  }
+
+  // 3. Attempt network fetch for targetZ or targetZ - 1
   for (let z = targetZ; z >= Math.max(2, targetZ - 1); z--) {
     const shift = level - z;
     const satRgb = await fetchDecodedEsriSatelliteRgb(z, x >> shift, y >> shift);
@@ -577,7 +635,9 @@ async function loadEsriSatelliteSubTileRgb(
       return resampleEsriSatRgb(satRgb, shift, x, y, w, h);
     }
   }
-  return null;
+
+  // 4. If network failed or timed out, return the cached ancestor fallback so zooming in NEVER blanks out!
+  return cachedFallback;
 }
 
 /**
@@ -597,26 +657,28 @@ function isExactOceanOrSeaPixel(
     return true;
   }
 
-  // Strictly mask enclosed sea troughs (Red Sea, Suez, Aqaba, Arabian Gulf, Black Sea, Caspian Sea, Med north of Delta arch)
+  // 1. Strictly mask enclosed sea troughs (Red Sea, Suez, Aqaba, Arabian Gulf, Black Sea, Caspian Sea, Med open waters)
   if (isStrictEnclosedSeaAtLatLon(lat, lng)) {
     return true;
   }
 
-  // Always protect known inland depressions & coastal delta lowlands (Nile Delta, Port Said, Damietta, North Sinai, Faiyum, etc.)
+  // 2. Always protect known inland depressions & continental basins
   if (isKnownInlandSubSeaDepression(lat, lng)) {
     return false;
   }
 
-  if (hasRealDem) {
-    // In SRTM/Terrarium DEM, any pixel with elev > 0.04m outside enclosed seas is 100% LAND!
-    if (elev > 0.04) {
-      return false;
-    }
-    return true;
+  // 3. Continental landmass check: if polygon geography confirms point is on continental land, it is NEVER ocean!
+  const isMarine = isMarineOrOceanWaterAtLatLon(lat, lng);
+  if (!isMarine) {
+    return false;
   }
 
-  // Fallback if DEM tile was offline
-  return isMarineOrOceanWaterAtLatLon(lat, lng);
+  // 4. If in coastal/marine zone, check DEM: elevation > 0.04m indicates coastal land, barrier island or peninsula
+  if (hasRealDem && elev > 0.04) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -1283,6 +1345,7 @@ function createSmoothLandThematicImageryProvider(
 
             for (let py = 0; py < h; py++) {
               const row = py * w;
+              const lat = latByPy[py];
               const uy0 = Math.max(0, py - urbanRadius);
               const uy1 = Math.min(h - 1, py + urbanRadius);
               const wy0 = Math.max(0, py - waterRadius);
@@ -1292,6 +1355,7 @@ function createSmoothLandThematicImageryProvider(
 
               for (let px = 0; px < w; px++) {
                 const cellIdx = row + px;
+                const lng = lngByPx[px];
                 const p = cellIdx * 4;
                 const flag = pixelMaskFlags[cellIdx];
 
@@ -1340,8 +1404,7 @@ function createSmoothLandThematicImageryProvider(
                   const exg = 2 * gn - rn - bn;
                   if (
                     (urbanFrac >= 0.26 && exg < 0.095) ||
-                    (waterFrac >= 0.2 && (bn >= rn * 0.9 || exg < 0.085)) ||
-                    (cropCount <= 2 && exg < 0.065)
+                    (waterFrac >= 0.2 && (bn >= rn * 0.9 || exg < 0.085))
                   ) {
                     out[p + 3] = 0;
                     continue;
@@ -1367,12 +1430,6 @@ function createSmoothLandThematicImageryProvider(
                     }
                   }
 
-                  const effThresh =
-                    cropNeighborDensity >= 0.14 ? Math.min(dynamicThreshold, 0.265) : dynamicThreshold;
-                  if (ndviEst < effThresh) {
-                    out[p + 3] = 0;
-                    continue;
-                  }
                   const tNorm = Math.max(0, Math.min(1, (ndviEst - 0.28) / 0.56));
                   if (plantKey === 'SAVI') {
                     out[p] = Math.round(132 + (4 - 132) * tNorm);
@@ -1404,36 +1461,60 @@ function createSmoothLandThematicImageryProvider(
                   continue;
                 }
 
-                if (
-                  cropNeighborDensity >= 0.34 &&
-                  urbanCount === 0 &&
-                  waterCount === 0 &&
-                  lumRange3x3[cellIdx] < 0.072 &&
-                  lum >= 0.095 &&
-                  lum <= 0.265 &&
-                  rn <= 0.31 &&
-                  bn <= 0.21
-                ) {
-                  const maxC = Math.max(rn, gn, bn);
-                  const minC = Math.min(rn, gn, bn);
-                  const chroma = maxC - minC;
-                  if (
-                    chroma >= 0.035 &&
-                    chroma <= 0.15 &&
-                    rn >= gn * 0.92 &&
-                    rn - bn >= 0.028 &&
-                    gn - bn >= 0.012
-                  ) {
-                    const warmth = Math.min(1, Math.max(0, (0.265 - lum) / 0.16));
-                    out[p] = Math.round(190 + (163 - 190) * warmth);
-                    out[p + 1] = Math.round(242 + (230 - 242) * warmth);
-                    out[p + 2] = Math.round(100 + (53 - 100) * warmth);
-                    out[p + 3] = 148;
-                    continue;
+                // Non-crop land pixels (pastures, shrubs, fallow fields, arid soils):
+                // Never leave land uncolored! Render scientific vegetation gradient matching the legend
+                const sampleElev = hasRealDem
+                  ? Math.max(0, elevGrid[cellIdx])
+                  : evaluateGlobalElevationAtLatLon(lat, lng, 0.05).elevationExactMeters;
+                const evalRes = evaluateSpatialSpectralOrSoilAtLatLon(
+                  lat,
+                  lng,
+                  plantKey,
+                  activeWeatherDay,
+                  sampleElev
+                );
+                const exg = 2 * gn - rn - bn;
+                const optShift = Math.max(-0.06, Math.min(0.08, exg * 0.65 - (lum - 0.22) * 0.12));
+                let landNdvi = Math.max(0.04, Math.min(0.88, evalRes.numericValue + optShift));
+
+                if (gibsRgba) {
+                  const g4 = cellIdx * 4;
+                  const gibsNdvi = decodeNasaGibsNdviFromRgba(
+                    gibsRgba[g4],
+                    gibsRgba[g4 + 1],
+                    gibsRgba[g4 + 2],
+                    gibsRgba[g4 + 3]
+                  );
+                  if (gibsNdvi !== null) {
+                    landNdvi = landNdvi * 0.8 + gibsNdvi * 0.2;
                   }
                 }
 
-                out[p + 3] = 0;
+                if (landNdvi >= 0.45) {
+                  const u = Math.min(1, (landNdvi - 0.45) / 0.25);
+                  out[p] = Math.round(34 + (16 - 34) * u);
+                  out[p + 1] = Math.round(197 + (185 - 197) * u);
+                  out[p + 2] = Math.round(94 + (129 - 94) * u);
+                  out[p + 3] = 180;
+                } else if (landNdvi >= 0.30) {
+                  const u = (landNdvi - 0.30) / 0.15;
+                  out[p] = Math.round(132 + (34 - 132) * u);
+                  out[p + 1] = Math.round(204 + (197 - 204) * u);
+                  out[p + 2] = Math.round(22 + (94 - 22) * u);
+                  out[p + 3] = 168;
+                } else if (landNdvi >= 0.15) {
+                  const u = (landNdvi - 0.15) / 0.15;
+                  out[p] = Math.round(234 + (132 - 234) * u);
+                  out[p + 1] = Math.round(179 + (204 - 179) * u);
+                  out[p + 2] = Math.round(8 + (22 - 8) * u);
+                  out[p + 3] = 150;
+                } else {
+                  const u = Math.max(0, landNdvi / 0.15);
+                  out[p] = Math.round(217 + (234 - 217) * u);
+                  out[p + 1] = Math.round(119 + (179 - 119) * u);
+                  out[p + 2] = Math.round(6 + (8 - 6) * u);
+                  out[p + 3] = 130;
+                }
               }
             }
 
@@ -1442,35 +1523,6 @@ function createSmoothLandThematicImageryProvider(
             return rememberTileCanvas(canvas);
           } else {
             // Fallback when Esri optical tile is temporarily offline (still respects ESA WorldCover 10m mask)
-            const offlineSamples: Array<{ ndvi: number; ndwi: number }> = [];
-            for (let py = 0; py < h; py += 16) {
-              const lat = latByPy[py];
-              for (let px = 0; px < w; px += 16) {
-                const lng = lngByPx[px];
-                const cellIdx = py * w + px;
-                const wcClass = wcMask ? wcMask[cellIdx] : 0;
-                const elev = hasRealDem ? elevGrid[cellIdx] : 15;
-                const isWater =
-                  wcClass === 80 ||
-                  isExactOceanOrSeaPixel(lat, lng, elev, hasRealDem) ||
-                  (!wcMask && isInlandRiverOrLakeAtLatLon(lat, lng));
-                if (!isWater && wcClass !== 50) {
-                  const sElev = hasRealDem
-                    ? Math.max(0, elev)
-                    : evaluateGlobalElevationAtLatLon(lat, lng, 0.05).elevationExactMeters;
-                  const val = evaluateSpatialSpectralOrSoilAtLatLon(
-                    lat,
-                    lng,
-                    plantKey,
-                    activeWeatherDay,
-                    sElev
-                  ).numericValue;
-                  offlineSamples.push({ ndvi: val, ndwi: -0.2 });
-                }
-              }
-            }
-            const dynamicThreshold = computeDynamicBinaryVegetationThreshold(offlineSamples, 0.28);
-
             for (let py = 0; py < h; py++) {
               const lat = latByPy[py];
               for (let px = 0; px < w; px++) {
@@ -1498,33 +1550,33 @@ function createSmoothLandThematicImageryProvider(
                   activeWeatherDay,
                   sampleElev
                 );
-                const ndwiRes = evaluateSpatialSpectralOrSoilAtLatLon(
-                  lat,
-                  lng,
-                  'NDWI',
-                  activeWeatherDay,
-                  sampleElev
-                );
-                const maskRes = applyDynamicBinaryVegetationMask({
-                  ndvi: evalRes.numericValue,
-                  ndwi: ndwiRes.numericValue > 0.35 ? 0.12 : -0.25,
-                  isGeographyMarine: isGeoOcean,
-                  isGeographyInlandWater: isGeoInland,
-                  isGeographyUrbanCore: isGeoUrban,
-                  dynamicThreshold,
-                });
+                const landNdvi = evalRes.numericValue;
 
-                if (maskRes.binaryMask === 0) {
-                  out[p + 3] = 0;
-                  continue;
+                if (landNdvi >= 0.45) {
+                  const u = Math.min(1, (landNdvi - 0.45) / 0.25);
+                  out[p] = Math.round(34 + (16 - 34) * u);
+                  out[p + 1] = Math.round(197 + (185 - 197) * u);
+                  out[p + 2] = Math.round(94 + (129 - 94) * u);
+                  out[p + 3] = 180;
+                } else if (landNdvi >= 0.30) {
+                  const u = (landNdvi - 0.30) / 0.15;
+                  out[p] = Math.round(132 + (34 - 132) * u);
+                  out[p + 1] = Math.round(204 + (197 - 204) * u);
+                  out[p + 2] = Math.round(22 + (94 - 22) * u);
+                  out[p + 3] = 168;
+                } else if (landNdvi >= 0.15) {
+                  const u = (landNdvi - 0.15) / 0.15;
+                  out[p] = Math.round(234 + (132 - 234) * u);
+                  out[p + 1] = Math.round(179 + (204 - 179) * u);
+                  out[p + 2] = Math.round(8 + (22 - 8) * u);
+                  out[p + 3] = 150;
+                } else {
+                  const u = Math.max(0, landNdvi / 0.15);
+                  out[p] = Math.round(217 + (234 - 217) * u);
+                  out[p + 1] = Math.round(119 + (179 - 119) * u);
+                  out[p + 2] = Math.round(6 + (8 - 6) * u);
+                  out[p + 3] = 130;
                 }
-
-                out[p] = evalRes.rgb[0];
-                out[p + 1] = evalRes.rgb[1];
-                out[p + 2] = evalRes.rgb[2];
-                out[p + 3] = Math.round(
-                  155 + Math.min(1, (evalRes.numericValue - dynamicThreshold) / 0.5) * 70
-                );
               }
             }
 
@@ -1974,7 +2026,7 @@ function createDayNightTerminatorImageryProvider(
   const provider = new Cesium.UrlTemplateImageryProvider({
     url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
     tilingScheme: new Cesium.GeographicTilingScheme(),
-    maximumLevel: 10,
+    maximumLevel: 14,
     enablePickFeatures: false,
   });
 
@@ -2103,7 +2155,7 @@ function createVentuskyWeatherImageryProvider(
   const provider = new Cesium.UrlTemplateImageryProvider({
     url: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
     tilingScheme: new Cesium.GeographicTilingScheme(),
-    maximumLevel: 10,
+    maximumLevel: 14,
     enablePickFeatures: false,
   });
 

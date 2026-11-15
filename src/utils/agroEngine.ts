@@ -3511,6 +3511,17 @@ GeoAgri Pro is 100% mathematically grounded in verified Earth Observation & agri
   // 7. PRECISION IRRIGATION & HYDROLOGY DECISIONS
   // -------------------------------------------------------------------------
   if (hasWaterOrIrrigationIntent || /(?:^|[\s،,.\-?!])بكرة(?:$|[\s،,.\-?!])/i.test(q)) {
+    if (!isZoneAvailable) {
+      if (!isAr) {
+        return `General Irrigation Guidance (No study zone defined yet):
+• ET₀ & Water Demand: In arid and Mediterranean climates, weekly crop evapotranspiration averages 25–40 mm depending on season.
+• Draw your study zone on the Atlas map so I can compute exact daily water deficits, rainfall offsets, and cubic-meter irrigation needs for your farm.`;
+      }
+      return `إرشاد عام لجدولة الري (لا توجد زونة مضافة منك بعد):
+• متوسط الاحتياج المائي للمحاصيل الحقلية يتراوح بين 25 إلى 40 مم أسبوعياً حسب الموسم ونوع المحصول.
+• ارسم حدود مزرعتك على الخريطة لحساب المقنن المائي الدقيق (م³/فدان) استناداً للأمطار المتوقعة ورطوبة التربة الفعلية.`;
+    }
+
     const total7dRain = forecast14
       .slice(0, 7)
       .reduce((acc, d) => acc + d.precipMm, 0)
@@ -3548,6 +3559,19 @@ ${
   // 8. PEST & DISEASE INTEGRATED MANAGEMENT (IPM)
   // -------------------------------------------------------------------------
   if (hasPestOrDiseaseIntent) {
+    if (!isZoneAvailable) {
+      if (!isAr) {
+        return `General Integrated Pest Management (IPM) Guidance (No study zone defined yet):
+• Preventive Scouting: Monitor crops twice weekly for early signs of fungal rusts, downy mildew, and sap-sucking vectors (Aphids, Whitefly).
+• Action Thresholds: Delay chemical intervention until economic threshold levels are reached; prioritize pheromone delta traps and selective bio-pesticides.
+• Draw your field boundaries to enable micro-climate satellite risk mapping across your specific zones.`;
+      }
+      return `إرشاد عام للمكافحة المتكاملة للآفات والأمراض (IPM) (لا توجد زونة مضافة منك بعد):
+• المكافحة الوقائية: فحص المحاصيل مرتين أسبوعياً لاكتشاف بؤر الإصابة المبكرة بالفطريات (الصدأ، الندوة) أو الحشرات الثاقبة الماصة (المن، الذبابة البيضاء).
+• مكافحة متكاملة IPM: الاعتماد على المصائد الفرمونية والرش الحيوي أولاً وتجنب الرش العشوائي للمبيدات الكيميائية.
+• ارسم حدود حقلك لتفعيل رادار التنبؤ بالآفات والإنذار المبكر المخصص لقطاعات أرضك.`;
+    }
+
     const avgTemp = forecast14[0] ? ((forecast14[0].tempMaxC + forecast14[0].tempMinC) / 2).toFixed(1) : '22.4';
     const avgHum = forecast14[0]?.relativeHumidityPct ?? 66;
     const total7dRain = forecast14.slice(0, 7).reduce((acc, d) => acc + d.precipMm, 0).toFixed(1);
@@ -3564,9 +3588,9 @@ ${
     return `خطة المكافحة المتكاملة للآفات والأمراض (IPM) في **${context.zoneNameAr}** (${area.feddans} فدان و${area.qirats} قيراط):
 • **المحددات المناخية:** متوسط الحرارة **${avgTemp}°م** · الرطوبة النسبية **${avgHum}%** · أمطار 7 أيام **${total7dRain} مم** · حرارة الأوراق LST **${farmAverages.LST}°م**.
 • **أهم المخاطر والإجراءات الفورية:**
-  1. **الحشرات الثاقبة الماصة (المن، الذبابة البيضاء، العنكبوت الأحمر):** تنشط مع الجفاف والحرارة؛ رش سليكات البوتاسيوم (1.5 لتر/فدان) لتقوية جدر الخلايا، واستخدم مركب إيمامكتين بنزوات عند الضرورة.
-  2. **الأمراض الفطرية (الصدأ، الندوة، التبقع):** تنشط مع زيادة الرطوبة والندى الصباحي؛ رش وقائي بمبيد أزوكسي ستروبين + تيبيكونازول وتجنب الري بالغمر الزائد.
-  3. **الوقاية الحيوية:** تعليق مصائد فرمونية، وتجنب الإفراط في التسميد الأزوتي (اليوريا) الذي يضعف مقاومة الأنسجة.`;
+  1. **الحشرات الثاقبة الماصة (المن، الذبابة البيضاء، العنكبوت الأحمر):** تنشط مع الجفاف والحرارة؛ رش سليكات البوتاسيوم (1.5 لتر/فدان) لتقوية جدر الخلايا في زونا A، واستخدم مركب إيمامكتين بنزوات عند الضرورة.
+  2. **الأمراض الفطرية (الصدأ، الندوة، التبقع):** تنشط مع زيادة الرطوبة والندى الصباحي في زونا C وزونا B؛ رش وقائي بمبيد أزوكسي ستروبين + تيبيكونازول وتجنب الري بالغمر الزائد.
+  3. **الوقاية الحيوية (IPM):** تعليق مصائد فرمونية، وتجنب الإفراط في التسميد الأزوتي (اليوريا) الذي يضعف مقاومة الأنسجة عبر قطاعات الحقل (زونا A وزونا B وزونا C).`;
   }
 
   // -------------------------------------------------------------------------
