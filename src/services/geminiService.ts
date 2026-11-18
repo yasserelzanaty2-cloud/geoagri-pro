@@ -119,15 +119,12 @@ export async function discoverAndVerifyGeminiKey(
 
   const apiVersions: Array<'v1beta' | 'v1'> = ['v1beta', 'v1'];
   const preferredModels = [
-    'gemini-4-hydrogen',
-    'gemini-3.8-flash',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
-    'gemini-2.0-flash-exp',
     'gemini-1.5-flash',
-    'gemini-1.5-flash-latest',
+    'gemini-2.5-pro',
     'gemini-1.5-pro',
-    'gemini-1.5-pro-latest',
+    'gemini-2.0-flash-exp',
   ];
 
   let lastError = '';
@@ -157,36 +154,38 @@ export async function discoverAndVerifyGeminiKey(
           .filter((name) => Boolean(name));
 
         if (supportedModels.length > 0) {
-          // Find the best preferred model in supportedModels
-          let chosenModel = preferredModels.find((p) => supportedModels.includes(p));
-          if (!chosenModel) {
-            chosenModel =
-              supportedModels.find((m) => m.includes('flash')) ||
-              supportedModels.find((m) => m.startsWith('gemini')) ||
-              supportedModels[0];
-          }
+          // Sort candidates: preferred first, then remaining supported
+          const candidatesToTry = [
+            ...preferredModels.filter((p) => supportedModels.includes(p)),
+            ...supportedModels.filter((s) => !preferredModels.includes(s)),
+          ];
 
-          // Test chosenModel with a lightweight ping
-          const pingUrl = `https://generativelanguage.googleapis.com/${version}/models/${chosenModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
-          const pingRes = await fetch(pingUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
-            }),
-            signal: AbortSignal.timeout(8000),
-          });
+          for (const chosenModel of candidatesToTry) {
+            try {
+              const pingUrl = `https://generativelanguage.googleapis.com/${version}/models/${chosenModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
+              const pingRes = await fetch(pingUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+                }),
+                signal: AbortSignal.timeout(7000),
+              });
 
-          if (pingRes.ok) {
-            setStoredGeminiApiKey(apiKey);
-            setStoredGeminiActiveModel(chosenModel);
-            setStoredGeminiApiVersion(version);
-            return {
-              ok: true,
-              model: chosenModel,
-              apiVersion: version,
-              availableModels: supportedModels,
-            };
+              if (pingRes.ok) {
+                setStoredGeminiApiKey(apiKey);
+                setStoredGeminiActiveModel(chosenModel);
+                setStoredGeminiApiVersion(version);
+                return {
+                  ok: true,
+                  model: chosenModel,
+                  apiVersion: version,
+                  availableModels: supportedModels,
+                };
+              }
+            } catch {
+              // try next candidate
+            }
           }
         }
       } else {
@@ -259,7 +258,8 @@ export async function discoverAndVerifyGeminiKey(
             error: 'خدمة Generative Language API غير مفعلة لهذا المفتاح في مشروع Google Cloud.',
           };
         }
-        if (!lastError || lastError.startsWith('HTTP')) {
+        // Only set lastError if not a simple model not found error
+        if (!msg.includes('not found') && (!lastError || lastError.startsWith('HTTP'))) {
           lastError = msg;
         }
       } catch (err) {
@@ -270,7 +270,9 @@ export async function discoverAndVerifyGeminiKey(
 
   return {
     ok: false,
-    error: lastError || 'تعذر الاتصال بخوادم Google Gemini',
+    error:
+      lastError ||
+      'تعذر العثور على نماذج تدعم المحادثة لهذا المفتاح. تأكد من تفعيل Gemini API في Google AI Studio.',
   };
 }
 
@@ -524,13 +526,12 @@ ${JSON.stringify(req.siteInventory, null, 2)}`;
     new Set(
       [
         storedActive,
-        'gemini-4-hydrogen',
-        'gemini-3.8-flash',
         'gemini-2.5-flash',
         'gemini-2.0-flash',
         'gemini-1.5-flash',
-        'gemini-1.5-flash-latest',
+        'gemini-2.5-pro',
         'gemini-1.5-pro',
+        'gemini-2.0-flash-exp',
       ].filter((m): m is string => typeof m === 'string' && m.length > 0)
     )
   );

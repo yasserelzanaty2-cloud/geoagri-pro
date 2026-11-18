@@ -128,13 +128,13 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>{isAr ? 'تكامل Google Gemini Live' : 'Google Gemini Live Setup'}</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                  Gemini 4 Hydrogen / 3.8
+                  Gemini 2.5 Flash / Pro
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {isAr
-                  ? 'أحدث نماذج الذكاء الاصطناعي الفائقة والمدعومة رسمياً من Google'
-                  : "Google's latest state-of-the-art production AI models"}
+                  ? 'أحدث نماذج الذكاء الاصطناعي الفائقة والمدعومة رسمياً من Google AI Studio'
+                  : "Google's latest official production models from Google AI Studio"}
               </p>
             </div>
           </div>
@@ -155,28 +155,28 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
             <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20">
               <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="font-bold text-emerald-800 dark:text-emerald-300">
-                  Gemini 4 Hydrogen
+                  Gemini 2.5 Flash
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
                 {isAr
-                  ? 'الجيل الأحدث 2026 فائق الذكاء للأتمتة المستقلة والوكلاء وتحليل الصور والأقمار'
-                  : 'Latest 2026 frontier model for agentic workflows & multimodal analysis'}
+                  ? 'الجيل الأحدث فائق السرعة والكفاءة العالية للردود اللحظية وأوامر التحكم بالمنصة'
+                  : 'Latest high-speed, high-efficiency model for instant responses & site control'}
               </p>
             </div>
 
             <div className="p-3 rounded-xl border border-sky-500/30 bg-sky-50/50 dark:bg-sky-950/20">
               <div className="flex items-center justify-between gap-1 mb-1">
                 <span className="font-bold text-sky-800 dark:text-sky-300">
-                  Gemini 3.8 Flash
+                  Gemini 2.5 Pro
                 </span>
                 <span className="w-2 h-2 rounded-full bg-sky-500" />
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
                 {isAr
-                  ? 'النموذج فائق السرعة والكفاءة العالية للردود اللحظية وأوامر التحكم'
-                  : 'High-throughput workhorse model for instant responses & site control'}
+                  ? 'النموذج الأقوى للاستدلال العلمي المعقد وتحليل صور الأقمار الصناعية والأمراض الزراعية'
+                  : 'Top-tier frontier reasoning model for complex agronomy & crop diagnostics'}
               </p>
             </div>
           </div>
@@ -190,11 +190,11 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
             <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
               {isAr ? (
                 <>
-                  عند إضافة مفتاح API الخاص بك من Google AI Studio، يجيب <strong>Gemini 4 Hydrogen / 3.8 Flash</strong> مباشرة وبأعلى درجات الذكاء على أي سؤال زراعي أو استفسار عام ويتحكم بكافة أدوات الخريطة والمنصة، مع تدرج تلقائي للنماذج لضمان عدم التوقف. وبدون مفتاح، يعمل <strong>المحرك الزراعي الخبير المدمج</strong> محلياً لتقديم أدلة زراعة المحاصيل والتوصيات المباشرة.
+                  عند إضافة مفتاح API الخاص بك من Google AI Studio، يجيب <strong>Gemini 2.5 Flash / Pro</strong> مباشرة وبأعلى درجات الدقة العلمية على أي استفسار زراعي أو سؤال عن زراعة أي محصول، ويتحكم بكافة أدوات الخريطة والمنصة. وبدون مفتاح، يعمل <strong>المحرك الزراعي الخبير المدمج</strong> محلياً لتقديم إرشادات المحاصيل والتوصيات المباشرة.
                 </>
               ) : (
                 <>
-                  With your Google AI Studio API key, <strong>Gemini 4 Hydrogen / 3.8 Flash</strong> answers any agronomic question dynamically with cutting-edge reasoning and operates site tools. Without a key, GeoAgri uses its built-in expert agronomic knowledge engine.
+                  With your Google AI Studio API key, <strong>Gemini 2.5 Flash / Pro</strong> answers any agronomic question dynamically with cutting-edge reasoning and operates site tools. Without a key, GeoAgri uses its built-in expert agronomic knowledge engine.
                 </>
               )}
             </p>

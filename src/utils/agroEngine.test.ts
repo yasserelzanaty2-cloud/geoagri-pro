@@ -110,6 +110,8 @@ import {
   isStrictEnclosedSeaAtLatLon,
   isUrbanBuiltCoreAtLatLon,
   sampleMicroPixelCellularPerturbation,
+  SATELLITE_VINTAGES_CATALOG,
+  getSatelliteVintageById,
 } from './thematicMapRenderer';
 import {
   CLASSIC_TOPO_ELEVATION_COLOR_STOPS,
@@ -3819,5 +3821,38 @@ test('51. evaluateAdvisorAgenticTurn parses multi-clause compound Arabic command
   assert.equal(lightAct.darkMode, false);
   assert.equal(compoundStep3.deterministicReplyText.includes('برنامج التسميد'), false);
 });
+
+test('52. Multi-temporal satellite imagery archive (2014-2026) and latest 2026 sub-meter Wayback basemap work reliably', () => {
+  // 1. Verify SATELLITE_VINTAGES_CATALOG spans 2014 to 2026
+  assert.ok(Array.isArray(SATELLITE_VINTAGES_CATALOG));
+  assert.ok(SATELLITE_VINTAGES_CATALOG.length >= 8, 'Archive must include multiple historical years');
+
+  const latest2026 = getSatelliteVintageById('2026_latest');
+  assert.equal(latest2026.year, 2026);
+  assert.equal(latest2026.isLatest, true);
+  assert.ok(latest2026.tileUrl.includes('43291'), 'Latest 2026 vintage must point to Wayback Oct 2026 release 43291');
+
+  const baseline2014 = getSatelliteVintageById('2014');
+  assert.equal(baseline2014.year, 2014);
+  assert.ok(baseline2014.tileUrl.includes('31144'), 'Historical 2014 baseline must point to Wayback June 2014 release 31144');
+
+  // 2. Verify all vintage URLs are valid non-empty HTTPS templates
+  for (const v of SATELLITE_VINTAGES_CATALOG) {
+    assert.ok(v.tileUrl.startsWith('https://'), `Vintage ${v.id} URL must start with https://`);
+    assert.ok(v.tileUrl.includes('{z}') && v.tileUrl.includes('{y}') && v.tileUrl.includes('{x}'));
+    assert.ok(v.dateLabelAr.length > 0 && v.sensor.length > 0);
+  }
+
+  // 3. Fallback check for getSatelliteVintageById
+  const fallback = getSatelliteVintageById('unknown_invalid_vintage');
+  assert.equal(fallback.id, '2026_latest');
+
+  // 4. Verify BASE_MAP_STYLES default satellite & hybrid uses latest 2026 high-resolution release
+  assert.ok(BASE_MAP_STYLES.satellite.tileUrl.includes('43291'), 'Satellite basemap must use 2026 high-res release 43291');
+  assert.ok(BASE_MAP_STYLES.hybrid.tileUrl.includes('43291'), 'Hybrid basemap must use 2026 high-res release 43291');
+  assert.ok(BASE_MAP_STYLES.satellite.labelAr.includes('2026 الحية'));
+  assert.ok(BASE_MAP_STYLES.hybrid.labelAr.includes('2026 Live'));
+});
+
 
 

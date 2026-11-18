@@ -2428,9 +2428,12 @@ export async function fetchNasaPowerClimatology(
   };
 }> {
   try {
+    const currentYear = new Date().getFullYear();
+    const startYear = Math.max(2023, currentYear - 2);
+    const endYear = currentYear;
     const url = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=T2M,TS,PRECTOTCORR,ALLSKY_SFC_SW_DWN,RH2M,GWETTOP,GWETROOT&community=AG&longitude=${centroid.lng.toFixed(
       3
-    )}&latitude=${centroid.lat.toFixed(3)}&start=2023&end=2024&format=JSON`;
+    )}&latitude=${centroid.lat.toFixed(3)}&start=${startYear}&end=${endYear}&format=JSON`;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5500);
@@ -2448,25 +2451,36 @@ export async function fetchNasaPowerClimatology(
     const monthlyRainMm: Record<number, number> = {};
     for (let m = 1; m <= 12; m++) {
       const mStr = String(m).padStart(2, '0');
-      const v2023 = prec[`2023${mStr}`];
-      const v2024 = prec[`2024${mStr}`];
-      const valid = [v2023, v2024].filter((v) => typeof v === 'number' && v >= 0 && v < 900);
+      const valid: number[] = [];
+      for (let y = startYear; y <= endYear; y++) {
+        const val = prec[`${y}${mStr}`];
+        if (typeof val === 'number' && val >= 0 && val < 900) {
+          valid.push(val);
+        }
+      }
       if (valid.length > 0) {
         const avgDailyMm = valid.reduce((a, b) => a + b, 0) / valid.length;
         monthlyRainMm[m] = Number((avgDailyMm * 30).toFixed(1));
       }
     }
 
-    const extractValid = (obj: Record<string, number> | undefined, key: string): number | undefined => {
-      const v = obj?.[key];
-      return typeof v === 'number' && v > -900 ? v : undefined;
+    const extractLatestValid = (obj: Record<string, number> | undefined): number | undefined => {
+      if (!obj) return undefined;
+      const sortedKeys = Object.keys(obj)
+        .filter((k) => /^\d{6}$/.test(k))
+        .sort((a, b) => (a < b ? 1 : -1));
+      for (const k of sortedKeys) {
+        const v = obj[k];
+        if (typeof v === 'number' && v > -900) return v;
+      }
+      return undefined;
     };
 
-    const swDown = extractValid(params?.ALLSKY_SFC_SW_DWN, '202410') ?? extractValid(params?.ALLSKY_SFC_SW_DWN, '202311');
-    const tsVal = extractValid(params?.TS, '202410') ?? extractValid(params?.TS, '202311');
-    const gwetTop = extractValid(params?.GWETTOP, '202410') ?? extractValid(params?.GWETTOP, '202311');
-    const gwetRoot = extractValid(params?.GWETROOT, '202410') ?? extractValid(params?.GWETROOT, '202311');
-    const rhVal = extractValid(params?.RH2M, '202410') ?? extractValid(params?.RH2M, '202311');
+    const swDown = extractLatestValid(params?.ALLSKY_SFC_SW_DWN);
+    const tsVal = extractLatestValid(params?.TS);
+    const gwetTop = extractLatestValid(params?.GWETTOP);
+    const gwetRoot = extractLatestValid(params?.GWETROOT);
+    const rhVal = extractLatestValid(params?.RH2M);
 
     return {
       source: 'nasa-power-live',

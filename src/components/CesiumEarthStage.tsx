@@ -14,11 +14,25 @@ import {
   RegionDrawingToolMode,
   SpatialGridCell,
   SpectralIndexKey,
+  SatelliteVintageId,
+  SatelliteVintageLayer,
   ThematicMapLayerId,
   UserStudyZone,
   VentuskyAtmosphericOptions,
   VentuskyLiveTelemetryNode,
 } from '../types/agro';
+import {
+  Play,
+  Pause,
+  Split,
+  RotateCcw,
+  Calendar,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  SlidersHorizontal,
+} from 'lucide-react';
 import {
   applyDynamicBinaryVegetationMask,
   computeDynamicBinaryVegetationThreshold,
@@ -26,6 +40,8 @@ import {
 } from '../utils/agroEngine';
 import {
   BASE_MAP_STYLES,
+  SATELLITE_VINTAGES_CATALOG,
+  getSatelliteVintageById,
   SpatialWindVectorPoint,
   VENTUSKY_CITIES_CATALOG,
   buildLocalizedRainCloudClusters,
@@ -122,6 +138,8 @@ interface CesiumEarthStageProps {
   blendDayNightOverlay?: boolean;
   flyToTarget: CesiumFlyTarget | null;
   zoomCommand: CesiumZoomCommand | null;
+  activeSatelliteVintageId?: SatelliteVintageId;
+  onSelectSatelliteVintage?: (vintageId: SatelliteVintageId) => void;
   onSelectPoint: (lat: number, lng: number, terrainHeightMeters: number | null) => void;
   onClickGridCell: (cell: SpatialGridCell) => void;
   onSelectZone?: (zoneId: string) => void;
@@ -2426,6 +2444,8 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
   blendDayNightOverlay,
   flyToTarget,
   zoomCommand,
+  activeSatelliteVintageId,
+  onSelectSatelliteVintage,
   onSelectPoint,
   onClickGridCell,
   onSelectZone,
@@ -2439,6 +2459,7 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const baseLayerRef = useRef<Cesium.ImageryLayer | null>(null);
   const labelsLayerRef = useRef<Cesium.ImageryLayer | null>(null);
+  const comparisonSplitLayerRef = useRef<Cesium.ImageryLayer | null>(null);
   const thematicLayerRef = useRef<Cesium.ImageryLayer | null>(null);
   const dayNightOverlayLayerRef = useRef<Cesium.ImageryLayer | null>(null);
   const zoneDataSourceRef = useRef<Cesium.CustomDataSource | null>(null);
@@ -2454,6 +2475,82 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
   const [rectFirstCorner, setRectFirstCorner] = useState<LatLon | null>(null);
   const [rectHoverCorner, setRectHoverCorner] = useState<LatLon | null>(null);
   const [cameraAltitudeMeters, setCameraAltitudeMeters] = useState<number>(11800000);
+
+  const [internalVintageId, setInternalVintageId] = useState<SatelliteVintageId>('2026_latest');
+  const activeVintageId = activeSatelliteVintageId || internalVintageId;
+  const handleSelectVintage = (vId: SatelliteVintageId) => {
+    setInternalVintageId(vId);
+    onSelectSatelliteVintage?.(vId);
+  };
+
+  const [isComparisonMode, setIsComparisonMode] = useState<boolean>(false);
+  const [comparisonBaselineVintageId, setComparisonBaselineVintageId] =
+    useState<SatelliteVintageId>('2014');
+  const [comparisonTargetVintageId, setComparisonTargetVintageId] =
+    useState<SatelliteVintageId>('2026_latest');
+  const [splitFraction, setSplitFraction] = useState<number>(0.5);
+  const [isTimeLapsePlaying, setIsTimeLapsePlaying] = useState<boolean>(false);
+  const [isTimeLapsePanelOpen, setIsTimeLapsePanelOpen] = useState<boolean>(false);
+  const [isDraggingSplitHandle, setIsDraggingSplitHandle] = useState<boolean>(false);
+
+  const handlePointerDownSplit = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDraggingSplitHandle(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMoveSplit = (e: React.PointerEvent) => {
+    if (!isDraggingSplitHandle || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const fraction = Math.max(0.04, Math.min(0.96, x / rect.width));
+    setSplitFraction(fraction);
+  };
+
+  const handlePointerUpSplit = (e: React.PointerEvent) => {
+    if (isDraggingSplitHandle) {
+      setIsDraggingSplitHandle(false);
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isTimeLapsePlaying) return;
+    const vintageOrder: SatelliteVintageId[] = [
+      '2014',
+      '2016',
+      '2018',
+      '2020',
+      '2022',
+      '2023_s2',
+      '2024',
+      '2025',
+      '2026_latest',
+    ];
+    let currentIndex = vintageOrder.indexOf(activeVintageId);
+    if (currentIndex === -1) currentIndex = 0;
+
+    const interval = setInterval(() => {
+      currentIndex = (currentIndex + 1) % vintageOrder.length;
+      handleSelectVintage(vintageOrder[currentIndex]);
+    }, 2200);
+
+    return () => clearInterval(interval);
+  }, [isTimeLapsePlaying, activeVintageId]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed() || !viewerReady) return;
+    if (isComparisonMode) {
+      viewer.scene.splitPosition = splitFraction;
+      viewer.scene.requestRender();
+    }
+  }, [splitFraction, isComparisonMode, viewerReady]);
 
   const lastCursorGeoRef = useRef<LatLon | null>(null);
   const zoomAnimRef = useRef<{
@@ -3024,43 +3121,91 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
     };
   }, []);
 
-  // 2. Sync Base Satellite / Topo / Dark Imagery Layer + Labels
+  // 2. Sync Base Satellite / Topo / Dark Imagery Layer + Labels + Historical Multi-Temporal Archive
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer || viewer.isDestroyed() || !viewerReady) return;
     let cancelled = false;
 
     const styleMeta = BASE_MAP_STYLES[baseMapStyle] || BASE_MAP_STYLES.hybrid;
-    const effectiveTileUrl =
-      baseMapStyle === 'topo_contours'
-        ? 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
-        : styleMeta.tileUrl;
-
-    const provider = new Cesium.UrlTemplateImageryProvider({
-      url: effectiveTileUrl,
-      maximumLevel: baseMapStyle === 'topo_contours' ? 16 : 19,
-      enablePickFeatures: false,
-    });
+    const isSatStyle =
+      baseMapStyle === 'satellite' ||
+      baseMapStyle === 'hybrid' ||
+      baseMapStyle === 'dark_satellite';
 
     if (baseLayerRef.current) {
       viewer.imageryLayers.remove(baseLayerRef.current, true);
       baseLayerRef.current = null;
+    }
+    if (comparisonSplitLayerRef.current) {
+      viewer.imageryLayers.remove(comparisonSplitLayerRef.current, true);
+      comparisonSplitLayerRef.current = null;
     }
     if (labelsLayerRef.current) {
       viewer.imageryLayers.remove(labelsLayerRef.current, true);
       labelsLayerRef.current = null;
     }
 
-    const newBase = viewer.imageryLayers.addImageryProvider(provider, 0);
-    if (baseMapStyle === 'dark_satellite') {
-      newBase.brightness = 0.72;
-      newBase.contrast = 1.22;
-    } else if (baseMapStyle === 'topo_contours') {
-      newBase.brightness = 0.96;
-      newBase.contrast = 1.08;
+    if (isComparisonMode) {
+      // Comparison Mode: Left side shows Baseline Vintage, Right side shows Target Vintage
+      const baselineVintage = getSatelliteVintageById(comparisonBaselineVintageId);
+      const targetVintage = getSatelliteVintageById(comparisonTargetVintageId);
+
+      const baseProvider = new Cesium.UrlTemplateImageryProvider({
+        url: baselineVintage.tileUrl,
+        maximumLevel: baselineVintage.id === '2023_s2' ? 16 : 19,
+        enablePickFeatures: false,
+      });
+      const leftLayer = viewer.imageryLayers.addImageryProvider(baseProvider, 0);
+      leftLayer.splitDirection = Cesium.SplitDirection.LEFT;
+      baseLayerRef.current = leftLayer;
+
+      const targetProvider = new Cesium.UrlTemplateImageryProvider({
+        url: targetVintage.tileUrl,
+        maximumLevel: targetVintage.id === '2023_s2' ? 16 : 19,
+        enablePickFeatures: false,
+      });
+      const rightLayer = viewer.imageryLayers.addImageryProvider(targetProvider, 1);
+      rightLayer.splitDirection = Cesium.SplitDirection.RIGHT;
+      comparisonSplitLayerRef.current = rightLayer;
+
+      viewer.scene.splitPosition = splitFraction;
+      viewer.imageryLayers.lowerToBottom(rightLayer);
+      viewer.imageryLayers.lowerToBottom(leftLayer);
+    } else {
+      // Standard Single Vintage Mode
+      const activeVintage = getSatelliteVintageById(activeVintageId);
+      const effectiveTileUrl =
+        baseMapStyle === 'topo_contours'
+          ? 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
+          : isSatStyle
+          ? activeVintage.tileUrl
+          : styleMeta.tileUrl;
+
+      const provider = new Cesium.UrlTemplateImageryProvider({
+        url: effectiveTileUrl,
+        maximumLevel:
+          baseMapStyle === 'topo_contours'
+            ? 16
+            : isSatStyle && activeVintage.id === '2023_s2'
+            ? 16
+            : 19,
+        enablePickFeatures: false,
+      });
+
+      const newBase = viewer.imageryLayers.addImageryProvider(provider, 0);
+      newBase.splitDirection = Cesium.SplitDirection.NONE;
+      if (baseMapStyle === 'dark_satellite') {
+        newBase.brightness = 0.72;
+        newBase.contrast = 1.22;
+      } else if (baseMapStyle === 'topo_contours') {
+        newBase.brightness = 0.96;
+        newBase.contrast = 1.08;
+      }
+      baseLayerRef.current = newBase;
+      viewer.imageryLayers.lowerToBottom(newBase);
+      viewer.scene.splitPosition = 0.5;
     }
-    baseLayerRef.current = newBase;
-    viewer.imageryLayers.lowerToBottom(newBase);
 
     const labelsTileUrl =
       styleMeta.labelsUrl ||
@@ -3094,7 +3239,15 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [baseMapStyle, showWhiteBorders, viewerReady]);
+  }, [
+    baseMapStyle,
+    showWhiteBorders,
+    viewerReady,
+    activeVintageId,
+    isComparisonMode,
+    comparisonBaselineVintageId,
+    comparisonTargetVintageId,
+  ]);
 
   // 3. Sync ALL Scientific Thematic & Spectral Overlays (Natural, Smooth Land-Masked Spectral/Soil/Temp/Moisture, Terrarium DEM, Rainfall & Clouds)
   useEffect(() => {
@@ -4325,8 +4478,14 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
     <div
       data-testid="cesium-earth-stage"
       className="relative w-full h-full bg-[#030712] overflow-hidden select-none"
+      onPointerMove={handlePointerMoveSplit}
+      onPointerUp={handlePointerUpSplit}
       style={{
-        cursor: drawingMode !== 'none' ? 'crosshair' : 'grab',
+        cursor: isDraggingSplitHandle
+          ? 'ew-resize'
+          : drawingMode !== 'none'
+          ? 'crosshair'
+          : 'grab',
       }}
     >
       <div ref={containerRef} className="w-full h-full" />
@@ -4339,6 +4498,317 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
           isWindCanvasVisible ? 'opacity-100' : 'opacity-0 hidden'
         }`}
       />
+
+      {/* Hardware-Accelerated Split Screen Divider Line (Before & After) */}
+      {isComparisonMode && (
+        <div
+          data-testid="satellite-split-divider"
+          className="absolute inset-y-0 z-20 pointer-events-none select-none flex flex-col items-center"
+          style={{ left: `${splitFraction * 100}%` }}
+        >
+          {/* Top Vintage Comparison Badges */}
+          <div className="absolute top-16 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/95 border border-emerald-500/50 shadow-2xl text-[11px] font-bold text-white pointer-events-auto whitespace-nowrap backdrop-blur-md">
+            <span className="text-amber-300">
+              ◀ {getSatelliteVintageById(comparisonBaselineVintageId).year} (
+              {isAr ? 'قبل الاستصلاح' : 'Baseline'})
+            </span>
+            <span className="text-white/40">|</span>
+            <span className="text-emerald-400">
+              {getSatelliteVintageById(comparisonTargetVintageId).year} (
+              {isAr ? 'الوضع الحالي' : 'Current'}) ▶
+            </span>
+          </div>
+
+          {/* Vertical glowing divider line */}
+          <div className="w-[3px] h-full bg-gradient-to-b from-amber-400 via-sky-400 to-emerald-400 shadow-[0_0_12px_rgba(56,189,248,0.9)]" />
+
+          {/* Central circular drag handle */}
+          <div
+            onPointerDown={handlePointerDownSplit}
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-slate-950 border-2 border-emerald-400 shadow-[0_0_16px_rgba(16,185,129,0.8)] flex items-center justify-center cursor-ew-resize pointer-events-auto active:scale-110 hover:scale-105 transition-transform"
+            title={isAr ? 'اسحب لمقارنة تطور الأرض قبل وبعد' : 'Drag to compare before & after'}
+          >
+            <Split className="w-5 h-5 text-emerald-300 rotate-90" />
+          </div>
+
+          {/* Quick Preset Buttons */}
+          <div className="absolute bottom-24 -translate-x-1/2 flex items-center gap-1 p-1 rounded-xl bg-slate-950/90 border border-white/20 pointer-events-auto shadow-xl text-[10px] font-mono backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => setSplitFraction(0.25)}
+              className={`px-2 py-0.5 rounded cursor-pointer transition ${
+                Math.abs(splitFraction - 0.25) < 0.05
+                  ? 'bg-emerald-600 text-white font-bold'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              25%
+            </button>
+            <button
+              type="button"
+              onClick={() => setSplitFraction(0.5)}
+              className={`px-2 py-0.5 rounded cursor-pointer transition ${
+                Math.abs(splitFraction - 0.5) < 0.05
+                  ? 'bg-emerald-600 text-white font-bold'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              50%
+            </button>
+            <button
+              type="button"
+              onClick={() => setSplitFraction(0.75)}
+              className={`px-2 py-0.5 rounded cursor-pointer transition ${
+                Math.abs(splitFraction - 0.75) < 0.05
+                  ? 'bg-emerald-600 text-white font-bold'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              75%
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Historical Satellite Vintage & Time-Lapse Control Widget */}
+      <div
+        data-testid="satellite-vintage-timelapse-widget"
+        className="absolute bottom-16 start-1/2 -translate-x-1/2 z-20 max-w-[95vw] sm:max-w-2xl pointer-events-auto"
+      >
+        <div className="rounded-2xl backdrop-blur-md bg-slate-950/90 border border-white/15 shadow-2xl overflow-hidden text-xs text-white transition-all">
+          {/* Widget Header Bar */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/80 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsTimeLapsePanelOpen(!isTimeLapsePanelOpen)}
+                className="flex items-center gap-1.5 font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>
+                  {isAr
+                    ? 'أرشيف وتطور الأقمار الصناعية (2014 – 2026)'
+                    : 'Satellite Time-Lapse (2014–2026)'}
+                </span>
+                {isTimeLapsePanelOpen ? (
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                ) : (
+                  <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                )}
+              </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                {isComparisonMode
+                  ? isAr
+                    ? 'مقارنة قبل وبعد'
+                    : 'Split Mode'
+                  : isTimeLapsePlaying
+                  ? isAr
+                    ? 'عرض تتابعي نشط'
+                    : 'Playing'
+                  : getSatelliteVintageById(activeVintageId).year}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {/* Time-Lapse Play/Pause button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isComparisonMode) setIsComparisonMode(false);
+                  setIsTimeLapsePlaying(!isTimeLapsePlaying);
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold text-[11px] border cursor-pointer transition ${
+                  isTimeLapsePlaying
+                    ? 'bg-amber-600/30 border-amber-400 text-amber-200'
+                    : 'bg-emerald-600/25 border-emerald-500/40 text-emerald-200 hover:bg-emerald-600/40'
+                }`}
+              >
+                {isTimeLapsePlaying ? (
+                  <>
+                    <Pause className="w-3 h-3" />
+                    <span>{isAr ? 'إيقاف' : 'Pause'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>{isAr ? 'عرض تتابعي' : 'Time-Lapse'}</span>
+                  </>
+                )}
+              </button>
+
+              {/* Before & After Comparison Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isTimeLapsePlaying) setIsTimeLapsePlaying(false);
+                  setIsComparisonMode(!isComparisonMode);
+                  if (!isTimeLapsePanelOpen) setIsTimeLapsePanelOpen(true);
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold text-[11px] border cursor-pointer transition ${
+                  isComparisonMode
+                    ? 'bg-sky-600/40 border-sky-400 text-white shadow-[0_0_10px_rgba(56,189,248,0.5)]'
+                    : 'bg-slate-800/80 border-white/10 text-slate-300 hover:text-white'
+                }`}
+              >
+                <Split className="w-3 h-3" />
+                <span>{isAr ? 'مقارنة قبل وبعد' : 'Split Compare'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Expanded Body: Year Timeline Chips & Comparison Pickers */}
+          {isTimeLapsePanelOpen && (
+            <div className="p-3 space-y-2.5">
+              {isComparisonMode ? (
+                /* Comparison Pickers */
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                    {/* Left Baseline */}
+                    <div className="p-2 rounded-xl bg-amber-950/30 border border-amber-500/30 space-y-1">
+                      <div className="font-bold text-amber-300 flex items-center justify-between">
+                        <span>
+                          {isAr
+                            ? 'المرئية السابقة (قبل الاستصلاح):'
+                            : 'Baseline (Before):'}
+                        </span>
+                        <span className="text-[10px] font-mono text-amber-200/80">
+                          {
+                            getSatelliteVintageById(comparisonBaselineVintageId)
+                              .resolutionBadge
+                          }
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {SATELLITE_VINTAGES_CATALOG.filter((v) => v.year <= 2022).map(
+                          (v) => (
+                            <button
+                              key={`base-${v.id}`}
+                              type="button"
+                              onClick={() => setComparisonBaselineVintageId(v.id)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer border transition ${
+                                comparisonBaselineVintageId === v.id
+                                  ? 'bg-amber-600 text-white border-amber-400 font-bold shadow'
+                                  : 'bg-slate-900 border-white/10 text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              {v.year}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Target */}
+                    <div className="p-2 rounded-xl bg-emerald-950/30 border border-emerald-500/30 space-y-1">
+                      <div className="font-bold text-emerald-300 flex items-center justify-between">
+                        <span>
+                          {isAr
+                            ? 'المرئية الحديثة (الوضع الحالي):'
+                            : 'Target (Current):'}
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-200/80">
+                          {
+                            getSatelliteVintageById(comparisonTargetVintageId)
+                              .resolutionBadge
+                          }
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {SATELLITE_VINTAGES_CATALOG.filter((v) => v.year >= 2022).map(
+                          (v) => (
+                            <button
+                              key={`target-${v.id}`}
+                              type="button"
+                              onClick={() => setComparisonTargetVintageId(v.id)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer border transition ${
+                                comparisonTargetVintageId === v.id
+                                  ? 'bg-emerald-600 text-white border-emerald-400 font-bold shadow'
+                                  : 'bg-slate-900 border-white/10 text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              {v.year} {v.isLatest ? (isAr ? 'الحية' : 'Live') : ''}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Standard Timeline Chips */
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>
+                      {isAr
+                        ? 'اختر سنة المرئية الفضائية لمعاينة تطور الأرض:'
+                        : 'Select Vintage Year:'}
+                    </span>
+                    <span className="text-[10px] font-mono text-emerald-300 font-bold">
+                      {getSatelliteVintageById(activeVintageId).dateLabelAr}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {SATELLITE_VINTAGES_CATALOG.map((v) => {
+                      const isSel = activeVintageId === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => handleSelectVintage(v.id)}
+                          title={isAr ? v.descriptionAr : v.descriptionEn}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold cursor-pointer border transition flex items-center gap-1 ${
+                            isSel
+                              ? 'bg-emerald-600 border-emerald-400 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                              : 'bg-slate-900/80 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800'
+                          }`}
+                        >
+                          <span>{v.year}</span>
+                          {v.isLatest && (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-200">
+                              {isAr ? 'الحية' : 'LIVE'}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Satellite Sensor & Resolution Metadata Badge */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10 text-[10px] text-slate-400 font-mono">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-sky-400 shrink-0" />
+                  <span className="text-slate-300">
+                    {
+                      getSatelliteVintageById(
+                        isComparisonMode
+                          ? comparisonTargetVintageId
+                          : activeVintageId
+                      ).sensor
+                    }
+                  </span>
+                  <span className="text-white/30">•</span>
+                  <span className="text-emerald-300 font-bold">
+                    {
+                      getSatelliteVintageById(
+                        isComparisonMode
+                          ? comparisonTargetVintageId
+                          : activeVintageId
+                      ).resolutionBadge
+                    }
+                  </span>
+                </div>
+                <span className="text-slate-400">
+                  {isAr
+                    ? 'خالية من الغيوم والضباب 100%'
+                    : '100% Cloudless / High Contrast'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {!viewerReady && !contextLost && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/90 pointer-events-none">

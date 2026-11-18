@@ -8,6 +8,8 @@ import {
   LatLon,
   OpenMeteoSoilMoistureDepth,
   PressureAltitudeLevel,
+  SatelliteVintageId,
+  SatelliteVintageLayer,
   SpectralIndexKey,
   ThematicMapLayerId,
   VentuskyAtmosphericOptions,
@@ -1056,24 +1058,147 @@ export interface BaseMapStyleMeta {
   attribution: string;
 }
 
+export const SATELLITE_VINTAGES_CATALOG: SatelliteVintageLayer[] = [
+  {
+    id: '2026_latest',
+    year: 2026,
+    dateLabelAr: 'أكتوبر 2026 (أحدث مرئية حية فائقة الدقة)',
+    dateLabelEn: 'October 2026 (Latest Live Ultra High-Res)',
+    tileUrl:
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/43291/{z}/{y}/{x}',
+    sensor: 'Maxar WorldView-3 / Airbus / Sentinel-2',
+    resolutionBadge: '0.3m–1m',
+    descriptionAr:
+      'أحدث مرئيات فائقة الدقة لعام 2026 تظهر كامل التوسعات واستصلاح الدلتا الجديدة وتوشكى وشرق العوينات والمزارع الحديثة بدقة حتى 30 سم',
+    descriptionEn:
+      'Latest 2026 sub-meter satellite passes showing modern reclamation, pivots, crops and infrastructure up to 30cm',
+    isLatest: true,
+  },
+  {
+    id: '2025',
+    year: 2025,
+    dateLabelAr: 'سبتمبر 2025 (أرشيف خريف 2025)',
+    dateLabelEn: 'September 2025 (Autumn 2025 Archive)',
+    tileUrl:
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/58924/{z}/{y}/{x}',
+    sensor: 'Maxar WorldView / Airbus Pleiades',
+    resolutionBadge: '0.5m',
+    descriptionAr: 'مرئية خريف 2025 عالية الوضوح لمتابعة الموسم الزراعي السابق والإنشاءات',
+    descriptionEn: 'Autumn 2025 high-resolution archive to monitor previous season crops',
+  },
+  {
+    id: '2024',
+    year: 2024,
+    dateLabelAr: 'مارس 2024 (أرشيف ربيع 2024)',
+    dateLabelEn: 'March 2024 (Spring 2024 Archive)',
+    tileUrl:
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/60013/{z}/{y}/{x}',
+    sensor: 'Maxar / Sentinel-2 High-Res',
+    resolutionBadge: '0.5m',
+    descriptionAr: 'مرئية ربيع 2024 لمتابعة بداية الاستصلاح والري المحوري بالقطعة',
+    descriptionEn: 'Spring 2024 archival imagery for early reclamation monitoring',
+  },
+  {
+    id: '2023_s2',
+    year: 2023,
+    dateLabelAr: 'صيف 2023 (Sentinel-2 خالية من الغيوم)',
+    dateLabelEn: 'Summer 2023 (Sentinel-2 Cloudless 10m)',
+    tileUrl:
+      'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/g/{z}/{y}/{x}.jpg',
+    sensor: 'Copernicus Sentinel-2 MSI',
+    resolutionBadge: '10m S2',
+    descriptionAr: 'موزاييك أوروبي صيفي خالٍ تماماً من السحب والضباب بدقة 10 أمتار',
+    descriptionEn: 'ESA Copernicus cloudless composite mosaic at 10m resolution',
+  },
+  {
+    id: '2022',
+    year: 2022,
+    dateLabelAr: 'أبريل 2022 (أرشيف 2022)',
+    dateLabelEn: 'April 2022 (Spring 2022 Archive)',
+    tileUrl:
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/48232/{z}/{y}/{x}',
+    sensor: 'DigitalGlobe / Maxar WorldView-2',
+    resolutionBadge: '0.6m',
+    descriptionAr: 'أرشيف عام 2022 قبل انطلاق المشروعات الكبرى والتوسعات الحالية',
+    descriptionEn: 'Spring 2022 archival baseline before recent expansions',
+  },
+  {
+    id: '2020',
+    year: 2020,
+    dateLabelAr: 'مايو 2020 (أرشيف 2020)',
+    dateLabelEn: 'May 2020 (Mid-term 2020 Archive)',
+    tileUrl:
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/32645/{z}/{y}/{x}',
+    sensor: 'Maxar WorldView-2/3',
+    resolutionBadge: '0.6m',
+    descriptionAr: 'أرشيف عام 2020 لمقارنة تطور الحقول والمحاصيل عبر 6 سنوات',
+    descriptionEn: 'May 2020 mid-term archive to evaluate 6-year farm growth',
+  },
+  {
+    id: '2018',
+    year: 2018,
+    dateLabelAr: 'مايو 2018 (أرشيف 2018)',
+    dateLabelEn: 'May 2018 (Historical 2018 Archive)',
+    tileUrl:
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/32337/{z}/{y}/{x}',
+    sensor: 'DigitalGlobe QuickBird/WorldView',
+    resolutionBadge: '0.8m',
+    descriptionAr: 'أرشيف عام 2018 قبل تسوية الأراضي وتركيب أجهزة الري المحوري',
+    descriptionEn: 'May 2018 pre-reclamation archive prior to center pivot setups',
+  },
+  {
+    id: '2016',
+    year: 2016,
+    dateLabelAr: 'أغسطس 2016 (أرشيف 2016)',
+    dateLabelEn: 'August 2016 (Historical 2016 Archive)',
+    tileUrl:
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/23601/{z}/{y}/{x}',
+    sensor: 'DigitalGlobe QuickBird',
+    resolutionBadge: '1.0m',
+    descriptionAr: 'أرشيف عام 2016 لمقارنة تدرج الغطاء النباتي الأولي',
+    descriptionEn: 'August 2016 historical imagery for early baseline checks',
+  },
+  {
+    id: '2014',
+    year: 2014,
+    dateLabelAr: 'يونيو 2014 (خط الأساس التاريخي الأول)',
+    dateLabelEn: 'June 2014 (First Historical Baseline)',
+    tileUrl:
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/31144/{z}/{y}/{x}',
+    sensor: 'DigitalGlobe / GeoEye-1',
+    resolutionBadge: '1.0m Baseline',
+    descriptionAr:
+      'خط الأساس التاريخي الأول لعام 2014 لمعاينة الأرض الطبيعية والصحراء قبل أي استصلاح أو زراعة',
+    descriptionEn:
+      'First historical 2014 baseline to inspect raw virgin land and desert before any human reclamation',
+  },
+];
+
+export function getSatelliteVintageById(
+  id: SatelliteVintageId | string
+): SatelliteVintageLayer {
+  const found = SATELLITE_VINTAGES_CATALOG.find((v) => v.id === id);
+  return found || SATELLITE_VINTAGES_CATALOG[0];
+}
+
 export const BASE_MAP_STYLES: Record<BaseMapStyleId, BaseMapStyleMeta> = {
   satellite: {
     id: 'satellite',
-    labelAr: 'قمر صناعي عالي الدقة (Esri Sentinel-2/Maxar)',
-    labelEn: 'High-Res Satellite (Esri Sentinel-2/Maxar)',
+    labelAr: 'قمر صناعي فائق الدقة (2026 الحية - Esri Wayback / Maxar)',
+    labelEn: 'Ultra High-Res Satellite (2026 Live - Esri Wayback / Maxar)',
     tileUrl:
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Esri, Maxar, Earthstar Geographics, Copernicus Sentinel-2',
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/43291/{z}/{y}/{x}',
+    attribution: 'Esri World Imagery Wayback (Oct 2026), Maxar, Copernicus Sentinel-2',
   },
   hybrid: {
     id: 'hybrid',
-    labelAr: 'قمر صناعي هجين بالأسماء والحدود (Hybrid)',
-    labelEn: 'Hybrid Satellite + Labels & Boundaries',
+    labelAr: 'قمر صناعي هجين فائق الدقة بالأسماء والحدود (2026 Live Hybrid)',
+    labelEn: '2026 Live Hybrid Satellite + Labels & Boundaries',
     tileUrl:
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/43291/{z}/{y}/{x}',
     labelsUrl:
       'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Esri, Maxar, Earthstar Geographics, HERE',
+    attribution: 'Esri World Imagery Wayback (Oct 2026), Maxar, HERE',
   },
   topo_contours: {
     id: 'topo_contours',
@@ -1110,14 +1235,14 @@ export const BASE_MAP_STYLES: Record<BaseMapStyleId, BaseMapStyleMeta> = {
   },
   dark_satellite: {
     id: 'dark_satellite',
-    labelAr: 'قمر صناعي علمي داكن عالي التباين (Dark High-Contrast Satellite)',
-    labelEn: 'Dark High-Contrast Satellite + Labels',
+    labelAr: 'قمر صناعي علمي داكن عالي التباين (2026 Dark High-Contrast)',
+    labelEn: '2026 Dark High-Contrast Satellite + Labels',
     tileUrl:
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      'https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/43291/{z}/{y}/{x}',
     labelsUrl:
       'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
     filterCss: 'brightness(0.68) contrast(1.24) saturate(0.86)',
-    attribution: 'Esri, Maxar, Earthstar Geographics',
+    attribution: 'Esri World Imagery Wayback (Oct 2026), Maxar, Earthstar Geographics',
   },
 };
 
@@ -5679,7 +5804,10 @@ export function evaluateVentuskyLayerAtLatLon(
       gaussianBell(lat, sLng, 31.8, 35.0, 2.2, 3.0, 39, 0.2) + // Gaza / Jerusalem / Levant coastal band
       gaussianBell(lat, sLng, 47.2, 2.2, 3.4, 5.2, 43, 0.15) + // France Paris-Loire rain echoes
       gaussianBell(lat, sLng, 37.5, 16.5, 3.0, 4.5, 48, 0.25) +
-      gaussianBell(lat, sLng, 26.5, -78.0, 3.2, 4.0, 56, 0.35) +
+      Math.max(
+        gaussianBell(lat, sLng, 26.5, -78.0, 3.8, 5.6, 56, 0.35),
+        gaussianBell(lat, lng, 26.5, -78.0, 3.8, 5.6, 56, 0.35)
+      ) +
       gaussianBell(lat, sLng, 51.0, 4.0, 3.5, 6.0, 38, 0.1) +
       gaussianBell(lat, sLng, 8.0, 102.0, 4.5, 6.0, 52, -0.2) +
       gaussianBell(lat, sLng, -4.0, -56.0, 5.0, 6.5, 49, 0.1);

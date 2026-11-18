@@ -90,6 +90,30 @@ export type BaseMapStyleId =
   | 'dark_scientific'
   | 'dark_satellite';
 
+export type SatelliteVintageId =
+  | '2026_latest'
+  | '2025'
+  | '2024'
+  | '2023_s2'
+  | '2022'
+  | '2020'
+  | '2018'
+  | '2016'
+  | '2014';
+
+export interface SatelliteVintageLayer {
+  id: SatelliteVintageId;
+  year: number;
+  dateLabelAr: string;
+  dateLabelEn: string;
+  tileUrl: string;
+  sensor: string;
+  resolutionBadge: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  isLatest?: boolean;
+}
+
 export type GlobalTemperatureSubMode = 'air_2m' | 'surface_lst';
 
 export type ElevationDisplayMode = '3d_contours' | '3d_color_only' | 'contours_only';
