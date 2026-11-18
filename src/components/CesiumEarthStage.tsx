@@ -2754,11 +2754,12 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
       viewer.scene.msaaSamples = 1;
       viewer.scene.postProcessStages.fxaa.enabled = false;
       viewer.scene.globe.maximumScreenSpaceError = 5.0;
-      viewer.scene.globe.tileCacheSize = 64;
+      viewer.scene.globe.tileCacheSize = 48;
     } else {
-      viewer.resolutionScale = Math.min(window.devicePixelRatio || 1, 1.5);
-      viewer.scene.globe.maximumScreenSpaceError = 2.6;
-      viewer.scene.globe.tileCacheSize = 300;
+      // Optimized 1:1 hardware resolution scale: eliminates GPU overheating & heavy lag on laptops/phones
+      viewer.resolutionScale = 1.0;
+      viewer.scene.globe.maximumScreenSpaceError = 3.6;
+      viewer.scene.globe.tileCacheSize = 120;
     }
     viewer.scene.globe.preloadSiblings = false;
     viewer.scene.globe.preloadAncestors = true;
@@ -4212,8 +4213,8 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
       if (!viewerRef.current || viewerRef.current.isDestroyed() || !windCanvasRef.current) {
         return;
       }
-      // Throttle Canvas 2D overlay animation to ~28 FPS so main thread stays crisp
-      if (nowMs - lastDrawMs < 35) {
+      // Throttle Canvas 2D overlay animation to ~20 FPS so CPU/GPU stays 100% responsive and cool
+      if (nowMs - lastDrawMs < 50) {
         rafId = requestAnimationFrame(drawWindCanvasFrame);
         return;
       }
