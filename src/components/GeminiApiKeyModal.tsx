@@ -87,7 +87,13 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
     } else {
       setTestStatus('error');
       let err = result.error || '';
-      if (!err || err.includes('not found') || err.includes('not supported')) {
+      if (
+        !err ||
+        err.includes('not found') ||
+        err.includes('not supported') ||
+        err.includes('ListModels') ||
+        err.includes('HTTP 404')
+      ) {
         err = isAr
           ? 'تعذر الوصول للنماذج بهذا المفتاح. تأكد من تفعيل Gemini API في Google AI Studio (aistudio.google.com/apikey).'
           : 'Unable to access models with this key. Ensure Gemini API is enabled in Google AI Studio.';

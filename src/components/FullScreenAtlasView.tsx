@@ -43,6 +43,7 @@ import {
 import {
   CROP_DATABASE,
   OpenMeteoZonePushAlert,
+  calculateGeodesicArea,
   evaluateEnvironmentalDisasterWarnings,
   getPolygonCentroid,
   resolveCustomCropReference,
@@ -89,7 +90,9 @@ import {
   CesiumEarthStage,
   CesiumFlyTarget,
   CesiumZoomCommand,
+  computeOptimalFarmCameraAltitude,
 } from './CesiumEarthStage';
+import { FarmBoundaryGpsModal } from './FarmBoundaryGpsModal';
 import {
   InspectedTelemetrySnapshot,
   MapFloatingHud,
@@ -277,6 +280,7 @@ export const FullScreenAtlasView: React.FC<FullScreenAtlasViewProps> = ({
 
   const [drawingMode, setDrawingMode] = useState<RegionDrawingToolMode>('none');
   const [pendingDraft, setPendingDraft] = useState<PendingZoneDraft | null>(null);
+  const [isBoundaryGpsModalOpen, setIsBoundaryGpsModalOpen] = useState<boolean>(false);
   const [overlayOpacity, setOverlayOpacity] = useState<number>(0.55);
   const [showSubZoneLabels, setShowSubZoneLabels] = useState<boolean>(true);
   const [gpsStatus, setGpsStatus] = useState<string | null>(null);
@@ -834,6 +838,34 @@ export const FullScreenAtlasView: React.FC<FullScreenAtlasViewProps> = ({
     );
   };
 
+  const handleConfirmGpsOrManualBoundary = (pts: LatLon[]) => {
+    if (pts.length < 3) return;
+    onChangeVertices(pts);
+    setDrawingMode('none');
+    const nextIdx = zones.length + 1;
+    const lats = pts.map((p) => p.lat);
+    const lngs = pts.map((p) => p.lng);
+    const centroid = {
+      lat: lats.reduce((a, b) => a + b, 0) / pts.length,
+      lng: lngs.reduce((a, b) => a + b, 0) / pts.length,
+    };
+    const areaCalc = calculateGeodesicArea(pts);
+    const optimalAlt = computeOptimalFarmCameraAltitude(pts, centroid, areaCalc.squareMeters);
+    setFlyToTarget({
+      lat: centroid.lat,
+      lng: centroid.lng,
+      heightMeters: optimalAlt,
+      pitchDeg: -62,
+      nonce: Date.now(),
+    });
+    setPendingDraft({
+      vertices: pts,
+      defaultNameAr: `مزرعتي ${nextIdx}`,
+      defaultNameEn: `My Farm ${nextIdx}`,
+    });
+    setIsBoundaryGpsModalOpen(false);
+  };
+
   const activeZoneObj = subZones.find((z) => z.id === selectedZoneTab) || subZones[0];
 
   return (
@@ -899,11 +931,16 @@ export const FullScreenAtlasView: React.FC<FullScreenAtlasViewProps> = ({
           onSelectActiveZone?.(zid);
           const found = zones.find((z) => z.id === zid);
           if (found) {
+            const optimalAlt = computeOptimalFarmCameraAltitude(
+              found.vertices,
+              found.centroid,
+              found.area?.squareMeters
+            );
             setFlyToTarget({
               lat: found.centroid.lat,
               lng: found.centroid.lng,
-              heightMeters: 2200,
-              pitchDeg: -58,
+              heightMeters: optimalAlt,
+              pitchDeg: -62,
               nonce: Date.now(),
             });
           }
@@ -1043,15 +1080,21 @@ export const FullScreenAtlasView: React.FC<FullScreenAtlasViewProps> = ({
         currentUser={currentUser}
         isAuthLoading={isAuthLoading}
         onCancelPendingDraft={() => setPendingDraft(null)}
+        onOpenBoundaryGpsModal={() => setIsBoundaryGpsModalOpen(true)}
         onSelectActiveZone={(zid) => {
           onSelectActiveZone?.(zid);
           const found = zones.find((z) => z.id === zid);
           if (found) {
+            const optimalAlt = computeOptimalFarmCameraAltitude(
+              found.vertices,
+              found.centroid,
+              found.area?.squareMeters
+            );
             setFlyToTarget({
               lat: found.centroid.lat,
               lng: found.centroid.lng,
-              heightMeters: 2200,
-              pitchDeg: -58,
+              heightMeters: optimalAlt,
+              pitchDeg: -62,
               nonce: Date.now(),
             });
           }
@@ -2302,6 +2345,14 @@ export const FullScreenAtlasView: React.FC<FullScreenAtlasViewProps> = ({
           )}
         </div>
       )}
+
+      {/* Farm Boundary Definition Modal (Live Phone Field GPS Surveyor & Manual Coordinates) */}
+      <FarmBoundaryGpsModal
+        isOpen={isBoundaryGpsModalOpen}
+        onClose={() => setIsBoundaryGpsModalOpen(false)}
+        language={language}
+        onConfirmBoundary={handleConfirmGpsOrManualBoundary}
+      />
     </div>
   );
 };

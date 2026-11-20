@@ -463,6 +463,7 @@ interface MapFloatingHudProps {
   onFlyToActiveZone: () => void;
   onLocateGps: () => void;
   onZoomStep: (dir: 'in' | 'out' | 'world') => void;
+  onOpenBoundaryGpsModal?: () => void;
   onOpenZoneInspector?: () => void;
   onOpenSoilSettings?: () => void;
   onOpenFieldPointsInspector?: () => void;
@@ -572,6 +573,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
   onFlyToActiveZone,
   onLocateGps,
   onZoomStep,
+  onOpenBoundaryGpsModal,
   onOpenZoneInspector,
   onOpenSoilSettings,
   onOpenFieldPointsInspector,
@@ -2436,6 +2438,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
                         currentUser={currentUser}
                         isAuthLoading={isAuthLoading}
                         onSignInAndConfirmPendingDraft={onSignInAndConfirmPendingDraft}
+                        onOpenBoundaryGpsModal={onOpenBoundaryGpsModal}
                         onUpdateZoneSoil={onUpdateZoneSoil}
                       />
                     )}
@@ -2841,6 +2844,17 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
             {isAr ? 'اعتماد المزرعة' : 'Confirm Farm'}
           </button>
         )}
+        {onOpenBoundaryGpsModal && (
+          <button
+            type="button"
+            onClick={onOpenBoundaryGpsModal}
+            className="px-2 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold cursor-pointer flex items-center gap-1 shrink-0"
+            title={isAr ? 'تحديد حدود المزرعة عبر إحداثيات GPS ميدانياً أو كتابة الأرقام' : 'Define via field GPS or coordinates'}
+          >
+            <Compass className="w-3.5 h-3.5 text-amber-200" />
+            <span>{isAr ? '📡 إدخال إحداثيات / GPS الحقل' : '📡 Field GPS / Coords'}</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onStartDrawingMode('none')}
@@ -3030,6 +3044,19 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
                   {farmAverages.NDVI >= 0.4 ? '85%' : '60%'}
                 </span>
               </button>
+
+              {/* Button 4: Field GPS & Coordinates */}
+              {onOpenBoundaryGpsModal && (
+                <button
+                  type="button"
+                  onClick={onOpenBoundaryGpsModal}
+                  className="h-7 px-2 sm:px-2.5 rounded-xl bg-amber-950/85 hover:bg-amber-900 border border-amber-400/50 text-amber-200 font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
+                  title={isAr ? 'تحديد حدود المزرعة عبر إحداثيات GPS ميدانياً في الحقل أو كتابة الأرقام' : 'Define farm boundaries using field GPS or manual coordinates'}
+                >
+                  <Compass className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span className="text-[11px] font-bold">{isAr ? '📡 GPS الحقل وإحداثيات' : '📡 Field GPS'}</span>
+                </button>
+              )}
 
               {/* Divider */}
               <div className="w-px h-4 bg-white/20 shrink-0 mx-0.5" />

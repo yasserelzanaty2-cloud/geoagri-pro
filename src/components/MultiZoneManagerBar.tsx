@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   CheckSquare,
   Cloud,
+  Compass,
   Edit3,
   Layers,
   LogIn,
@@ -64,6 +65,7 @@ interface MultiZoneManagerBarProps {
   onSelectActiveZone: (zoneId: string) => void;
   onToggleCompareZone: (zoneId: string) => void;
   onStartDrawingNewZone: (mode: 'rectangle' | 'polygon') => void;
+  onOpenBoundaryGpsModal?: () => void;
   onRenameZone: (zoneId: string, newNameAr: string, newCategoryAr: string) => void;
   onUpdateZoneSoil?: (zoneId: string, nextSoil: SoilProfile) => void;
   onDeleteZone: (zoneId: string) => void;
@@ -133,6 +135,7 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
   onSelectActiveZone,
   onToggleCompareZone,
   onStartDrawingNewZone,
+  onOpenBoundaryGpsModal,
   onRenameZone,
   onUpdateZoneSoil,
   onDeleteZone,
@@ -436,6 +439,19 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
             <MapPin className="w-3.5 h-3.5" />
             <span>{isAr ? '+ إضافة مزرعة (بنقاط حرة)' : '+ Add Farm (Polygon)'}</span>
           </button>
+
+          {onOpenBoundaryGpsModal && (
+            <button
+              type="button"
+              data-testid="add-new-zone-gps-coords-btn"
+              onClick={onOpenBoundaryGpsModal}
+              className="min-h-[30px] px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-600 hover:bg-amber-500 text-white flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer shadow-sm transition-all"
+              title={isAr ? 'تحديد حدود المزرعة عبر إحداثيات GPS ميدانياً في الحقل أو كتابة الأرقام' : 'Define farm boundaries using field GPS or manual coordinates'}
+            >
+              <Compass className="w-3.5 h-3.5 text-amber-200" />
+              <span>{isAr ? '📡 تحديد الحدود (GPS الحقل / إحداثيات)' : '📡 GPS Field / Coordinates'}</span>
+            </button>
+          )}
 
           {zones.length >= 2 && (
             <button

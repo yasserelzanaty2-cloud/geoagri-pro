@@ -2429,6 +2429,33 @@ function getShapedTextBillboardCanvas(options: {
   return badge;
 }
 
+/**
+ * Computes comfortable bird's-eye camera altitude ensuring 100% of the farm boundary
+ * is clearly visible in the viewport without excessive zooming.
+ */
+export function computeOptimalFarmCameraAltitude(
+  vertices?: Array<{ lat: number; lng: number }>,
+  centroid?: { lat: number; lng: number },
+  squareMeters?: number
+): number {
+  if (vertices && vertices.length >= 3) {
+    const lats = vertices.map((v) => v.lat);
+    const lngs = vertices.map((v) => v.lng);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const latMeters = Math.max(20, (maxLat - minLat) * 111320);
+    const refLat = centroid ? centroid.lat : (minLat + maxLat) / 2;
+    const lngMeters = Math.max(20, (maxLng - minLng) * 111320 * Math.cos((refLat * Math.PI) / 180));
+    const diagonalMeters = Math.hypot(latMeters, lngMeters);
+    return Math.max(2200, Math.min(35000, Math.round(diagonalMeters * 2.4)));
+  }
+  const sqM = squareMeters || 40000;
+  const approxDim = Math.sqrt(sqM) * 1.414;
+  return Math.max(2200, Math.min(35000, Math.round(approxDim * 2.4)));
+}
+
 export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
   language,
   baseMapStyle,
@@ -3050,25 +3077,6 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         } else if (entityId.startsWith('study-zone-')) {
           const zid = entityId.replace(/^study-zone-(?:label-)?/, '');
           callbacksRef.current.onSelectZone?.(zid);
-          // Auto-fly camera smoothly to the clicked farm
-          const target = stateRef.current.zones.find((z) => z.id === zid);
-          if (target && target.centroid) {
-            const sqM = target.area?.squareMeters || 40000;
-            const targetAlt = Math.max(1200, Math.min(16000, Math.sqrt(sqM) * 6.0));
-            viewer.camera.flyTo({
-              destination: Cesium.Cartesian3.fromDegrees(
-                target.centroid.lng,
-                target.centroid.lat,
-                targetAlt
-              ),
-              orientation: {
-                heading: viewer.camera.heading,
-                pitch: Cesium.Math.toRadians(-52),
-                roll: 0,
-              },
-              duration: 1.5,
-            });
-          }
         }
       }
 
@@ -3719,20 +3727,32 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         ? Cesium.Math.toRadians(-(90 - Math.min(62, Math.max(18, pitchDeg))))
         : Cesium.Math.toRadians(-89.5);
 
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(
-        flyToTarget.lng,
-        flyToTarget.lat,
-        Math.max(120, flyToTarget.heightMeters)
-      ),
-      orientation: {
-        heading: Cesium.Math.toRadians(flyToTarget.headingDeg ?? rotationDeg),
-        pitch: targetPitch,
-        roll: 0,
-      },
-      duration: 1.05,
-    });
-    viewer.scene.requestRender();
+    try {
+      viewer.camera.cancelFlight();
+    } catch {
+      // ignore
+    }
+
+    if (
+      Number.isFinite(flyToTarget.lng) &&
+      Number.isFinite(flyToTarget.lat) &&
+      Number.isFinite(flyToTarget.heightMeters)
+    ) {
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          flyToTarget.lng,
+          flyToTarget.lat,
+          Math.max(120, flyToTarget.heightMeters)
+        ),
+        orientation: {
+          heading: Cesium.Math.toRadians(flyToTarget.headingDeg ?? rotationDeg),
+          pitch: targetPitch,
+          roll: 0,
+        },
+        duration: 1.15,
+      });
+      viewer.scene.requestRender();
+    }
   }, [flyToTarget, viewerReady, pitchDeg, rotationDeg, viewMode3D]);
 
   // 8. Handle Compact Side Zoom Buttons (+ / - / World Reset) with Incremental Smooth Zoom
@@ -3811,9 +3831,6 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
       ? 'soil_moisture'
       : activeThematicMap;
 
-    // Track placed zone centroids to prevent overlapping billboards (like "زونة زراعية 2" & "أرض مجدي 2")
-    const placedZoneCentroids: Array<{ lat: number; lng: number }> = [];
-
     // Render all saved zones on the 3D terrain
     zones.forEach((zone) => {
       if (zone.vertices.length < 3) return;
@@ -3839,12 +3856,14 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         },
       });
 
-      // Anchored precisely at the exact farm centroid location
-      const closeCollisions = placedZoneCentroids.filter(
-        (c) => Math.hypot(c.lat - zone.centroid.lat, c.lng - zone.centroid.lng) < 0.018
-      ).length;
-      placedZoneCentroids.push({ lat: zone.centroid.lat, lng: zone.centroid.lng });
-      const yOffset = isSelected ? -5 : -5 - (closeCollisions * 18);
+      // Co-located farm collision avoidance: calculate dedicated non-overlapping vertical shelves
+      const clusterMembers = zones.filter(
+        (z) =>
+          z.vertices.length >= 3 &&
+          Math.hypot(z.centroid.lat - zone.centroid.lat, z.centroid.lng - zone.centroid.lng) < 0.035
+      );
+      const clusterIndex = clusterMembers.findIndex((z) => z.id === zone.id);
+      const shelfIndex = clusterIndex >= 0 ? clusterIndex : 0;
 
       const zoneBadge = getShapedTextBillboardCanvas({
         lines: [isAr ? zone.nameAr : zone.nameEn],
@@ -3853,6 +3872,10 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         accentColor: zone.color || (isSelected ? '#10b981' : '#38bdf8'),
         isSelected,
       });
+
+      const badgeHeight = zoneBadge.heightCss || 28;
+      // Stacking shelf with generous margin: (badgeHeight + 7px gap) per overlapping badge
+      const yOffset = -6 - (shelfIndex * (badgeHeight + 7));
 
       zoneDs.entities.add({
         id: `study-zone-label-${zone.id}`,
@@ -3863,8 +3886,11 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
           height: zoneBadge.heightCss,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, yOffset),
+          eyeOffset: new Cesium.Cartesian3(0, 0, isSelected ? -30 : 0),
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          scaleByDistance: new Cesium.NearFarScalar(2000, 1.0, 1500000, 0.72),
+          translucencyByDistance: new Cesium.NearFarScalar(1200000, 1.0, 2200000, 0.0),
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2400000),
         },
       });
     });
@@ -4026,10 +4052,23 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
     const viewer = viewerRef.current;
     if (!viewer || viewer.isDestroyed() || !viewerReady) return;
     const target = zones.find((z) => z.id === activeZoneId);
-    if (target && target.centroid) {
+    if (
+      target &&
+      target.centroid &&
+      Number.isFinite(target.centroid.lng) &&
+      Number.isFinite(target.centroid.lat)
+    ) {
       lastAutoFlownZoneRef.current = activeZoneId;
-      const sqMeters = target.area?.squareMeters || 40000;
-      const targetAlt = Math.max(1200, Math.min(16000, Math.sqrt(sqMeters) * 6.0));
+      const targetAlt = computeOptimalFarmCameraAltitude(
+        target.vertices,
+        target.centroid,
+        target.area?.squareMeters
+      );
+      try {
+        viewer.camera.cancelFlight();
+      } catch {
+        // ignore
+      }
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(
           target.centroid.lng,
@@ -4038,11 +4077,12 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         ),
         orientation: {
           heading: viewer.camera.heading,
-          pitch: Cesium.Math.toRadians(-52),
+          pitch: Cesium.Math.toRadians(-62),
           roll: 0,
         },
-        duration: 1.6,
+        duration: 1.4,
       });
+      viewer.scene.requestRender();
     }
   }, [activeZoneId, zones, viewerReady]);
 

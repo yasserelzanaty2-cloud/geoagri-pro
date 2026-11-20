@@ -122,15 +122,9 @@ export async function discoverAndVerifyGeminiKey(
     'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-flash-8b',
-    'gemini-2.0-flash-lite',
     'gemini-2.5-pro',
     'gemini-1.5-pro',
-    'gemini-1.5-pro-latest',
-    'gemini-2.0-flash-exp',
-    'gemini-1.5-flash-001',
-    'gemini-1.5-pro-001',
+    'gemini-2.0-flash-lite',
   ];
 
   let lastError = '';
@@ -274,8 +268,23 @@ export async function discoverAndVerifyGeminiKey(
   }
 
   let finalError = lastError;
-  if (!finalError || finalError.includes('not found') || finalError.includes('not supported for generateContent')) {
-    finalError = 'تعذر العثور على نموذج محادثة متوافق مع هذا المفتاح. تأكد من إنشاء المفتاح من Google AI Studio (aistudio.google.com/apikey).';
+  if (
+    !finalError ||
+    finalError.includes('not found') ||
+    finalError.includes('not supported') ||
+    finalError.includes('ListModels') ||
+    finalError.startsWith('HTTP 404')
+  ) {
+    finalError =
+      'تعذر العثور على نموذج ذكاء اصطناعي مفعل لهذا المفتاح. يرجى التأكد من إنشاء المفتاح وتفعيل Gemini API في Google AI Studio (aistudio.google.com/apikey).';
+  } else if (
+    finalError.includes('RESOURCE_EXHAUSTED') ||
+    finalError.includes('quota') ||
+    finalError.includes('rate limit') ||
+    finalError.startsWith('HTTP 429')
+  ) {
+    finalError =
+      'تم تجاوز الحصة المجانية لهذا المفتاح (Quota Exceeded). يمكنك استخدام مفتاح آخر أو الاعتماد على المحرك الزراعي الخبير المدمج مجاناً وبدون قيود.';
   }
 
   return {
