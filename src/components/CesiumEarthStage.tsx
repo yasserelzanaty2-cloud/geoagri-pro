@@ -2347,12 +2347,12 @@ function getShapedTextBillboardCanvas(options: {
   }
 
   const isZone = options.variant === 'zone';
-  const fontSizePx = isZone ? 13 : 11;
-  const lineHeightPx = isZone ? 18 : 15;
-  const padX = isZone ? 11 : 7;
-  const padY = isZone ? 5 : 3;
+  const fontSizePx = isZone ? 14 : 11;
+  const lineHeightPx = isZone ? 20 : 15;
+  const padX = isZone ? 14 : 8;
+  const padY = isZone ? 7 : 4;
   const fontSpec = isZone
-    ? `700 ${fontSizePx}px "Cairo", "Tajawal", system-ui, sans-serif`
+    ? `700 ${fontSizePx}px "Cairo", "Tajawal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
     : `700 ${fontSizePx}px "Cairo", "IBM Plex Mono", system-ui, sans-serif`;
 
   ctx.font = fontSpec;
@@ -2363,7 +2363,7 @@ function getShapedTextBillboardCanvas(options: {
     return hasArabic ? `\u202B${raw}\u202C` : raw;
   });
 
-  let maxLineWidth = 24;
+  let maxLineWidth = 28;
   for (const line of shapedLines) {
     const w = ctx.measureText(line).width;
     if (w > maxLineWidth) maxLineWidth = w;
@@ -2384,28 +2384,40 @@ function getShapedTextBillboardCanvas(options: {
   ctx.lineCap = 'round';
 
   if (isZone) {
-    // Sleek high-contrast pill badge for farm zones
-    ctx.fillStyle = 'rgba(2, 6, 23, 0.86)';
+    // Sleek, ultra-clean high-contrast glass pill badge for farm zones
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
     ctx.strokeStyle = options.accentColor || (options.isSelected ? '#10b981' : '#38bdf8');
-    ctx.lineWidth = options.isSelected ? 1.8 : 1.3;
+    ctx.lineWidth = options.isSelected ? 2.2 : 1.5;
     ctx.beginPath();
     if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(1, 1, widthCss - 2, heightCss - 2, 8);
+      ctx.roundRect(1.5, 1.5, widthCss - 3, heightCss - 3, 10);
     } else {
-      ctx.rect(1, 1, widthCss - 2, heightCss - 2);
+      ctx.rect(1.5, 1.5, widthCss - 3, heightCss - 3);
     }
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
   const cx = widthCss / 2;
   shapedLines.forEach((line, idx) => {
     const cy = padY + (idx + 0.5) * lineHeightPx;
-    ctx.strokeStyle = '#020617';
-    ctx.lineWidth = isZone ? 2.8 : 3.2;
-    ctx.strokeText(line, cx, cy);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(line, cx, cy);
+    if (isZone) {
+      // Crisp white text with no thick stroke destroying Arabic letter loops
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+      ctx.shadowBlur = 3;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(line, cx, cy);
+      ctx.shadowBlur = 0;
+    } else {
+      ctx.strokeStyle = '#020617';
+      ctx.lineWidth = 2.0;
+      ctx.strokeText(line, cx, cy);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(line, cx, cy);
+    }
   });
 
   const badge: ShapedBillboardBadge = { canvas, widthCss, heightCss };

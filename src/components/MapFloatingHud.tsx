@@ -104,6 +104,12 @@ import {
   AuthoritativeSoilGridsReading,
   getAuthoritativeLayerSourceMeta,
 } from '../services/authoritativeGisService';
+import { MapLocationSearchBar } from './MapLocationSearchBar';
+import {
+  FarmerCropModal,
+  FarmerWaterModal,
+  FarmerHealthModal,
+} from './FarmerQuickModals';
 
 export interface InspectedTelemetrySnapshot {
   lat: number;
@@ -541,6 +547,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
   farmAverages,
   vertices,
   area,
+  soil,
   zones,
   activeZoneId,
   comparedZoneIds,
@@ -656,9 +663,11 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
     onChangeTimeLapsePlaying?.(val);
   };
 
-  // Option 3: Unified Bottom Command Dock state
+  // Option 3: Unified Command Bar & Mode Separation
   type TopBarTabId = 'none' | 'layers' | 'timelapse_compare' | 'fields' | 'risk' | 'nav';
   const [activeTopTab, setActiveTopTab] = useState<TopBarTabId>('none');
+  const [isExpertMode, setIsExpertMode] = useState<boolean>(false);
+  const [farmerModalOpen, setFarmerModalOpen] = useState<'none' | 'crop' | 'water' | 'health'>('none');
   const [layersSubTab, setLayersSubTab] =
     useState<'thematic' | 'satellites' | 'basemap' | 'legend'>('thematic');
 
@@ -2556,207 +2565,287 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
 
   return (
     <>
-      {/* 1. TOP DYNAMIC COMMAND BAR (GOOGLE EARTH PRO STYLE) */}
-      <div
-        data-testid="top-dynamic-command-bar"
-        className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2 max-w-[calc(100vw-20px)]"
-      >
-        {/* Main Sleek Horizontal Toolbar */}
-        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-2xl bg-slate-950/92 backdrop-blur-xl border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.65)] text-xs text-white">
-          {/* Tab 1: Layers & Satellites */}
-          <button
-            type="button"
-            data-testid="top-bar-tab-layers"
-            onClick={() => {
-              if (activeTopTab === 'layers') {
-                setActiveTopTab('none');
-                setMenuOpen(false);
-              } else {
-                setActiveTopTab('layers');
-                setActiveSection('maps');
-                setMenuOpen(true);
-              }
+      {/* 1. TOP RESPONSIVE HEADER DOCK */}
+      <div className="absolute top-3 inset-x-3 sm:inset-x-4 z-30 pointer-events-none flex flex-wrap items-center justify-between gap-2.5">
+        {/* Left / Start: Smart Location Search Bar with Autocomplete */}
+        <div className="pointer-events-auto shrink-0">
+          <MapLocationSearchBar
+            language={language}
+            onSelectLocation={(lat, lng) => {
+              onFlyToPresetRegion(lat, lng, 6000, -50);
             }}
-            className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-              activeTopTab === 'layers'
-                ? 'bg-emerald-600 text-white border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
-                : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="whitespace-nowrap">{isAr ? 'الخرائط والأقمار' : 'Layers & Sats'}</span>
-            <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-black/40 text-emerald-300 shrink-0">
-              {unifiedSpec.selectionType === 'thematic' && unifiedSpec.activeThematicMap === 'natural'
-                ? 'RGB'
-                : unifiedSpec.badgeCode}
-            </span>
-            {activeTopTab === 'layers' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Divider */}
-          <div className="w-px h-5 bg-white/15 shrink-0 hidden sm:block" />
-
-          {/* Tab 2: Integrated Time-Lapse & Archive (2014 - 2026) */}
-          <div className="flex items-center gap-1 shrink-0 bg-slate-900/70 p-0.5 rounded-xl border border-white/10">
-            <button
-              type="button"
-              data-testid="top-bar-play-timelapse"
-              onClick={() => setIsTimeLapsePlaying(!isTimeLapsePlaying)}
-              title={isAr ? (isTimeLapsePlaying ? 'إيقاف مؤقت' : 'تشغيل العرض الزمني التتابعي') : (isTimeLapsePlaying ? 'Pause Time-Lapse' : 'Play Time-Lapse')}
-              className={`h-7 sm:h-8 px-2 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 ${
-                isTimeLapsePlaying
-                  ? 'bg-sky-500 text-white border-sky-300 shadow-[0_0_12px_rgba(14,165,233,0.6)] animate-pulse'
-                  : 'bg-slate-950/80 text-sky-400 border-white/5 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              {isTimeLapsePlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span className="text-[10px] font-bold hidden md:inline">{isTimeLapsePlaying ? (isAr ? 'إيقاف' : 'Pause') : (isAr ? 'تطور' : 'Play')}</span>
-            </button>
-
-            {/* Year Chips */}
-            <div className="flex items-center gap-1 overflow-x-auto max-w-[210px] sm:max-w-none [scrollbar-width:none]">
-              {SATELLITE_VINTAGES_CATALOG.map((v) => {
-                const isSel = activeSatelliteVintageId === v.id;
-                return (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => handleSelectVintage(v.id)}
-                    title={isAr ? v.descriptionAr : v.descriptionEn}
-                    className={`h-7 sm:h-8 px-2 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer border flex items-center gap-1 ${
-                      isSel
-                        ? 'bg-sky-600 text-white border-sky-400 shadow-[0_0_10px_rgba(14,165,233,0.5)]'
-                        : 'bg-slate-950/50 text-slate-400 border-transparent hover:text-white hover:bg-slate-800'
-                    }`}
-                  >
-                    <span>{v.year}</span>
-                    {v.isLatest && (
-                      <span className="text-[8px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-200">
-                        {isAr ? 'الحية' : 'LIVE'}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Split Comparison Toggle Button */}
-            <button
-              type="button"
-              data-testid="top-bar-compare-toggle"
-              onClick={() => {
-                const next = !isComparisonMode;
-                setIsComparisonMode(next);
-                if (next) {
-                  setActiveTopTab('timelapse_compare');
-                  setMenuOpen(false);
-                } else if (activeTopTab === 'timelapse_compare') {
-                  setActiveTopTab('none');
-                }
-              }}
-              title={isAr ? 'مقارنة قبل / بعد بفاصل شاشة تفاعلي' : 'Before / After Split Comparison'}
-              className={`h-7 sm:h-8 px-2 rounded-lg text-[11px] font-bold transition-colors cursor-pointer border flex items-center gap-1 ${
-                isComparisonMode
-                  ? 'bg-amber-600 text-white border-amber-400 shadow-[0_0_10px_rgba(217,119,6,0.5)]'
-                  : 'bg-slate-950/80 text-slate-300 border-white/5 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <Sliders className="w-3 h-3 text-amber-400" />
-              <span className="hidden sm:inline">{isAr ? 'مقارنة' : 'Compare'}</span>
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="w-px h-5 bg-white/15 shrink-0 hidden sm:block" />
-
-          {/* Tab 3: Field Tools & Zones */}
-          <button
-            type="button"
-            data-testid="top-bar-tab-fields"
-            onClick={() => {
-              if (activeTopTab === 'fields') {
-                setActiveTopTab('none');
-                setMenuOpen(false);
-              } else {
-                setActiveTopTab('fields');
-                setActiveSection('zones');
-                setMenuOpen(true);
-              }
-            }}
-            className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-              activeTopTab === 'fields'
-                ? 'bg-amber-600 text-white border-amber-400 shadow-[0_0_12px_rgba(217,119,6,0.5)]'
-                : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <Sprout className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="whitespace-nowrap">{isAr ? 'أدوات الحقل' : 'Field Tools'}</span>
-            {zones.length > 0 && (
-              <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-black/40 text-amber-300 shrink-0">
-                {zones.length}
-              </span>
-            )}
-            {activeTopTab === 'fields' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Tab 4: Risk Alerts & Telemetry */}
-          <button
-            type="button"
-            data-testid="top-bar-tab-risk"
-            onClick={() => {
-              if (activeTopTab === 'risk') {
-                setActiveTopTab('none');
-              } else {
-                setActiveTopTab('risk');
-                setMenuOpen(false);
-              }
-            }}
-            className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-              activeTopTab === 'risk'
-                ? 'bg-rose-600 text-white border-rose-400 shadow-[0_0_12px_rgba(225,29,72,0.5)]'
-                : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-            <span className="hidden md:inline whitespace-nowrap">{isAr ? 'الإنذار والمؤشرات' : 'Alerts'}</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold shrink-0">
-              {farmAverages.NDVI < 0.25 ? '82%' : '48%'}
-            </span>
-            {activeTopTab === 'risk' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Tab 5: Navigation & 3D Camera */}
-          <button
-            type="button"
-            data-testid="top-bar-tab-nav"
-            onClick={() => {
-              if (activeTopTab === 'nav') {
-                setActiveTopTab('none');
-                setMenuOpen(false);
-              } else {
-                setActiveTopTab('nav');
-                setActiveSection('view');
-                setMenuOpen(true);
-              }
-            }}
-            title={isAr ? 'أدوات العرض والملاحة والكاميرا 3D' : 'View & 3D Navigation'}
-            className={`h-8 sm:h-9 px-2.5 rounded-xl font-bold transition-all cursor-pointer border flex items-center gap-1 ${
-              activeTopTab === 'nav'
-                ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.5)]'
-                : 'bg-slate-900/80 text-slate-300 border-white/10 hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="hidden lg:inline">{viewMode3D ? '3D' : '2D'}</span>
-            {activeTopTab === 'nav' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
+          />
         </div>
 
-        {/* Downward Dropdown Sheets */}
+        {/* Right / End: Farmer Simple Bar OR Expert GIS Command Dock */}
+        <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
+          {!isExpertMode ? (
+            /* SIMPLE FARMER BAR (DEFAULT FOR ALL FARMERS) */
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-950/92 backdrop-blur-xl border border-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.6)] text-xs text-white">
+              {/* Button 1: Best Crop For Your Land */}
+              <button
+                type="button"
+                onClick={() => setFarmerModalOpen('crop')}
+                className="h-8 sm:h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
+                title={isAr ? 'أفضل المحاصيل المناسبة لأرضك هذا الموسم' : 'Best crops for your land'}
+              >
+                <Sprout className="w-4 h-4 text-emerald-200 shrink-0" />
+                <span className="whitespace-nowrap">{isAr ? 'أفضل زرعة لأرضك 🌾' : 'Best Crop 🌾'}</span>
+              </button>
+
+              {/* Button 2: Water & Irrigation Status */}
+              <button
+                type="button"
+                onClick={() => setFarmerModalOpen('water')}
+                className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-sky-950/80 hover:bg-sky-900 border border-sky-500/40 text-sky-200 font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                title={isAr ? 'حالة مياه وري الأرض وتوقعات المطر' : 'Water & irrigation status'}
+              >
+                <Droplets className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                <span className="hidden sm:inline whitespace-nowrap">{isAr ? 'حالة الري والمياه' : 'Irrigation'}</span>
+              </button>
+
+              {/* Button 3: Crop Health & Vigor */}
+              <button
+                type="button"
+                onClick={() => setFarmerModalOpen('health')}
+                className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-teal-950/80 hover:bg-teal-900 border border-teal-500/40 text-teal-200 font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                title={isAr ? 'صحة ونشاط الزرع بالأقمار الصناعية' : 'Crop health & vigor'}
+              >
+                <Activity className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                <span className="hidden sm:inline whitespace-nowrap">{isAr ? 'صحة الزرع' : 'Crop Health'}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-200">
+                  {farmAverages.NDVI >= 0.4 ? '85%' : '60%'}
+                </span>
+              </button>
+
+              {/* Divider */}
+              <div className="w-px h-5 bg-white/20 shrink-0" />
+
+              {/* Switch to Expert GIS Mode */}
+              <button
+                type="button"
+                onClick={() => setIsExpertMode(true)}
+                className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-500/50 text-purple-200 font-bold flex items-center gap-1.5 shadow-md shadow-purple-950/40 transition-all cursor-pointer"
+                title={isAr ? 'التبديل إلى وضع الخبراء والمتخصصين (خرائط الأقمار الصناعية والتحليلات المتقدمة)' : 'Switch to Expert GIS Mode'}
+              >
+                <Sliders className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="whitespace-nowrap">{isAr ? '🔬 وضع الخبراء' : '🔬 Expert Mode'}</span>
+              </button>
+            </div>
+          ) : (
+            /* EXPERT GIS BAR (FOR SPECIALISTS ONLY) */
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-950/94 backdrop-blur-2xl border border-purple-500/40 shadow-[0_8px_32px_rgba(0,0,0,0.7)] text-xs text-white max-w-[calc(100vw-360px)] overflow-x-auto [scrollbar-width:none]">
+              {/* Return to Simple Farmer Mode */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsExpertMode(false);
+                  setActiveTopTab('none');
+                  setMenuOpen(false);
+                }}
+                className="h-8 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer shrink-0"
+                title={isAr ? 'العودة إلى الوضع البسيط للمزارع' : 'Back to Simple Farmer Mode'}
+              >
+                <Sprout className="w-3.5 h-3.5" />
+                <span className="whitespace-nowrap">{isAr ? '🌱 الوضع البسيط' : '🌱 Simple Mode'}</span>
+              </button>
+
+              <div className="w-px h-4 bg-white/15 shrink-0" />
+
+              {/* Tab 1: Layers & Satellites */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTopTab === 'layers') {
+                    setActiveTopTab('none');
+                    setMenuOpen(false);
+                  } else {
+                    setActiveTopTab('layers');
+                    setActiveSection('maps');
+                    setMenuOpen(true);
+                  }
+                }}
+                className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
+                  activeTopTab === 'layers'
+                    ? 'bg-emerald-600 text-white border-emerald-400'
+                    : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="whitespace-nowrap">{isAr ? 'الخرائط والأقمار' : 'Layers'}</span>
+                <span className="font-mono text-[9px] px-1 py-0.2 rounded bg-black/40 text-emerald-300">
+                  {unifiedSpec.selectionType === 'thematic' && unifiedSpec.activeThematicMap === 'natural'
+                    ? 'RGB'
+                    : unifiedSpec.badgeCode}
+                </span>
+                {activeTopTab === 'layers' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+
+              {/* Tab 2: Time-Lapse & Archive (2014 - 2026) */}
+              <div className="flex items-center gap-1 shrink-0 bg-slate-900/80 p-0.5 rounded-xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsTimeLapsePlaying(!isTimeLapsePlaying)}
+                  title={isAr ? 'تشغيل العرض التتابعي' : 'Play Time-Lapse'}
+                  className={`h-7 px-2 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 ${
+                    isTimeLapsePlaying
+                      ? 'bg-sky-500 text-white border-sky-300 animate-pulse'
+                      : 'bg-slate-950/80 text-sky-400 border-white/5 hover:bg-slate-800'
+                  }`}
+                >
+                  {isTimeLapsePlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                  <span className="text-[10px] font-bold">{isTimeLapsePlaying ? (isAr ? 'إيقاف' : 'Pause') : (isAr ? 'تطور' : 'Play')}</span>
+                </button>
+
+                <div className="flex items-center gap-1 overflow-x-auto max-w-[160px] sm:max-w-none [scrollbar-width:none]">
+                  {SATELLITE_VINTAGES_CATALOG.map((v) => {
+                    const isSel = activeSatelliteVintageId === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => handleSelectVintage(v.id)}
+                        className={`h-7 px-1.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer border ${
+                          isSel
+                            ? 'bg-sky-600 text-white border-sky-400'
+                            : 'bg-slate-950/50 text-slate-400 border-transparent hover:text-white'
+                        }`}
+                      >
+                        {v.year}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isComparisonMode;
+                    setIsComparisonMode(next);
+                    if (next) {
+                      setActiveTopTab('timelapse_compare');
+                      setMenuOpen(false);
+                    } else if (activeTopTab === 'timelapse_compare') {
+                      setActiveTopTab('none');
+                    }
+                  }}
+                  className={`h-7 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer border flex items-center gap-1 ${
+                    isComparisonMode
+                      ? 'bg-amber-600 text-white border-amber-400'
+                      : 'bg-slate-950/80 text-slate-300 border-white/5 hover:bg-slate-800'
+                  }`}
+                >
+                  <Sliders className="w-3 h-3 text-amber-400" />
+                  <span>{isAr ? 'مقارنة' : 'Compare'}</span>
+                </button>
+              </div>
+
+              {/* Tab 3: Field Tools */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTopTab === 'fields') {
+                    setActiveTopTab('none');
+                    setMenuOpen(false);
+                  } else {
+                    setActiveTopTab('fields');
+                    setActiveSection('zones');
+                    setMenuOpen(true);
+                  }
+                }}
+                className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
+                  activeTopTab === 'fields'
+                    ? 'bg-amber-600 text-white border-amber-400'
+                    : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
+                }`}
+              >
+                <Sprout className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="whitespace-nowrap">{isAr ? 'أدوات الحقل' : 'Tools'}</span>
+              </button>
+
+              {/* Tab 4: Risk Alerts */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTopTab === 'risk') {
+                    setActiveTopTab('none');
+                  } else {
+                    setActiveTopTab('risk');
+                    setMenuOpen(false);
+                  }
+                }}
+                className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
+                  activeTopTab === 'risk'
+                    ? 'bg-rose-600 text-white border-rose-400'
+                    : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span className="whitespace-nowrap">{isAr ? 'الإنذار' : 'Alerts'}</span>
+                <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold">
+                  {farmAverages.NDVI < 0.25 ? '82%' : '48%'}
+                </span>
+              </button>
+
+              {/* Tab 5: 3D Camera / Navigation */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTopTab === 'nav') {
+                    setActiveTopTab('none');
+                    setMenuOpen(false);
+                  } else {
+                    setActiveTopTab('nav');
+                    setActiveSection('view');
+                    setMenuOpen(true);
+                  }
+                }}
+                className={`h-8 px-2 rounded-xl font-bold flex items-center gap-1 transition-all cursor-pointer border shrink-0 ${
+                  activeTopTab === 'nav'
+                    ? 'bg-indigo-600 text-white border-indigo-400'
+                    : 'bg-slate-900/80 text-slate-300 border-white/10 hover:bg-slate-800'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{viewMode3D ? '3D' : '2D'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Downward Dropdown Sheets (Positioned under Expert Bar) */}
         {verticalDropdownNode}
         {timelapseCompareNode}
         {riskSectionNode}
       </div>
+
+      {/* 2. SIMPLE FARMER ACTION MODALS */}
+      <FarmerCropModal
+        isOpen={farmerModalOpen === 'crop'}
+        onClose={() => setFarmerModalOpen('none')}
+        language={language}
+        farmName={isAr ? (zones.find((z) => z.id === activeZoneId)?.nameAr || 'المزرعة الحالية') : (zones.find((z) => z.id === activeZoneId)?.nameEn || 'Current Farm')}
+        area={area}
+        soil={soil}
+        farmAverages={farmAverages}
+      />
+
+      <FarmerWaterModal
+        isOpen={farmerModalOpen === 'water'}
+        onClose={() => setFarmerModalOpen('none')}
+        language={language}
+        farmName={isAr ? (zones.find((z) => z.id === activeZoneId)?.nameAr || 'المزرعة الحالية') : (zones.find((z) => z.id === activeZoneId)?.nameEn || 'Current Farm')}
+        forecast14={forecast14}
+        soil={soil}
+      />
+
+      <FarmerHealthModal
+        isOpen={farmerModalOpen === 'health'}
+        onClose={() => setFarmerModalOpen('none')}
+        language={language}
+        farmName={isAr ? (zones.find((z) => z.id === activeZoneId)?.nameAr || 'المزرعة الحالية') : (zones.find((z) => z.id === activeZoneId)?.nameEn || 'Current Farm')}
+        farmAverages={farmAverages}
+      />
 
       {drawingGuidanceBannerNode}
 
