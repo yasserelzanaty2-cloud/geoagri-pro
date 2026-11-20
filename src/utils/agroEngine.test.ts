@@ -343,7 +343,7 @@ test('Weather forecasting & MCDA crop scoring engine ranks crops and rotation st
     area.totalFeddansDecimal,
     preset.currentCropId
   );
-  assert.equal(scored.length, 12);
+  assert.equal(scored.length, CROP_DATABASE.length);
   assert.ok(scored[0].suitabilityScore >= scored[1].suitabilityScore);
   assert.ok(scored[0].suitabilityScore > 70 && scored[0].suitabilityScore <= 100);
 

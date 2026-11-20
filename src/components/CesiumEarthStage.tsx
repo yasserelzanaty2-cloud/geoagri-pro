@@ -3780,6 +3780,9 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
       ? 'soil_moisture'
       : activeThematicMap;
 
+    // Track placed zone centroids to prevent overlapping billboards (like "زونة زراعية 2" & "أرض مجدي 2")
+    const placedZoneCentroids: Array<{ lat: number; lng: number }> = [];
+
     // Render all saved zones on the 3D terrain
     zones.forEach((zone) => {
       if (zone.vertices.length < 3) return;
@@ -3805,6 +3808,12 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         },
       });
 
+      // Spatial collision check for close or identical centroids (~0.018 deg)
+      const nearbyCollisions = placedZoneCentroids.filter(
+        (c) => Math.hypot(c.lat - zone.centroid.lat, c.lng - zone.centroid.lng) < 0.018
+      ).length;
+      placedZoneCentroids.push({ lat: zone.centroid.lat, lng: zone.centroid.lng });
+
       const zoneBadge = getShapedTextBillboardCanvas({
         lines: [isAr ? zone.nameAr : zone.nameEn],
         isRtl: isAr,
@@ -3812,6 +3821,9 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         accentColor: zone.color || (isSelected ? '#10b981' : '#38bdf8'),
         isSelected,
       });
+
+      // Stagger vertical pixel offset so overlapping labels stack neatly above each other
+      const yOffset = isSelected ? -10 : -10 - (nearbyCollisions * 36);
 
       zoneDs.entities.add({
         id: `study-zone-label-${zone.id}`,
@@ -3821,7 +3833,8 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
           width: zoneBadge.widthCss,
           height: zoneBadge.heightCss,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          pixelOffset: new Cesium.Cartesian2(0, -10),
+          pixelOffset: new Cesium.Cartesian2(0, yOffset),
+          eyeOffset: new Cesium.Cartesian3(0, 0, isSelected ? -150 : -(nearbyCollisions * 15)),
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },

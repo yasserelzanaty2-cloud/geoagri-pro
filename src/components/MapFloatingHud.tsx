@@ -761,6 +761,178 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
     moved: boolean;
   } | null>(null);
 
+  // --- 1. DRAGGABLE LOCATION SEARCH BAR ---
+  const [searchPos, setSearchPos] = useState<{ x: number; y: number }>(() => {
+    try {
+      const saved = localStorage.getItem('geoagri_pos_search_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { x: 14, y: 14 };
+  });
+  const [isSearchDragging, setIsSearchDragging] = useState(false);
+  const searchDragRef = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    hasMoved: boolean;
+  } | null>(null);
+  const latestSearchPosRef = useRef(searchPos);
+  latestSearchPosRef.current = searchPos;
+
+  const handleSearchPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('input, button:not([data-drag-handle="true"])')) return;
+    searchDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: searchPos.x,
+      origY: searchPos.y,
+      hasMoved: false,
+    };
+    setIsSearchDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleSearchPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = searchDragRef.current;
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (Math.hypot(dx, dy) > 3) drag.hasMoved = true;
+    const bounds = containerRef.current?.getBoundingClientRect();
+    const containerW = bounds?.width || window.innerWidth;
+    const containerH = bounds?.height || window.innerHeight;
+    const maxW = Math.max(10, containerW - 320);
+    const maxH = Math.max(10, containerH - 60);
+
+    const next = {
+      x: Math.max(8, Math.min(maxW, drag.origX + dx)),
+      y: Math.max(8, Math.min(maxH, drag.origY + dy)),
+    };
+    latestSearchPosRef.current = next;
+    setSearchPos(next);
+  };
+
+  const handleSearchPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (searchDragRef.current?.hasMoved) {
+      try {
+        localStorage.setItem('geoagri_pos_search_v2', JSON.stringify(latestSearchPosRef.current));
+      } catch {}
+    }
+    searchDragRef.current = null;
+    setIsSearchDragging(false);
+  };
+
+  const resetSearchPos = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const def = { x: 14, y: 14 };
+    setSearchPos(def);
+    try {
+      localStorage.removeItem('geoagri_pos_search_v2');
+    } catch {}
+  };
+
+  // --- 2. DRAGGABLE MASTER COMMAND DOCK (FARMER & EXPERT TABS) ---
+  const [dockPos, setDockPos] = useState<{ x: number; y: number }>(() => {
+    try {
+      const saved = localStorage.getItem('geoagri_pos_dock_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    const defaultX = typeof window !== 'undefined' ? Math.max(20, window.innerWidth - 560) : 380;
+    return { x: defaultX, y: 14 };
+  });
+  const [isDockDragging, setIsDockDragging] = useState(false);
+  const [isDockCollapsed, setIsDockCollapsed] = useState(false);
+  const dockDragRef = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    hasMoved: boolean;
+  } | null>(null);
+  const latestDockPosRef = useRef(dockPos);
+  latestDockPosRef.current = dockPos;
+
+  const handleDockPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button:not([data-drag-handle="true"]), input, select')) return;
+    dockDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: dockPos.x,
+      origY: dockPos.y,
+      hasMoved: false,
+    };
+    setIsDockDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleDockPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dockDragRef.current;
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (Math.hypot(dx, dy) > 3) drag.hasMoved = true;
+    const bounds = containerRef.current?.getBoundingClientRect();
+    const containerW = bounds?.width || window.innerWidth;
+    const containerH = bounds?.height || window.innerHeight;
+    const dockW = isDockCollapsed ? 200 : isExpertMode ? 560 : 470;
+    const maxW = Math.max(10, containerW - dockW);
+    const maxH = Math.max(10, containerH - 60);
+
+    const next = {
+      x: Math.max(8, Math.min(maxW, drag.origX + dx)),
+      y: Math.max(8, Math.min(maxH, drag.origY + dy)),
+    };
+    latestDockPosRef.current = next;
+    setDockPos(next);
+  };
+
+  const handleDockPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (dockDragRef.current?.hasMoved) {
+      try {
+        localStorage.setItem('geoagri_pos_dock_v2', JSON.stringify(latestDockPosRef.current));
+      } catch {}
+    }
+    dockDragRef.current = null;
+    setIsDockDragging(false);
+  };
+
+  const resetDockPos = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const bounds = containerRef.current?.getBoundingClientRect();
+    const containerW = bounds?.width || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+    const def = { x: Math.max(20, containerW - 560), y: 14 };
+    setDockPos(def);
+    try {
+      localStorage.removeItem('geoagri_pos_dock_v2');
+    } catch {}
+  };
+
+  // Keep floating widgets safely inside boundaries on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const bounds = containerRef.current?.getBoundingClientRect();
+      const containerW = bounds?.width || window.innerWidth;
+      const containerH = bounds?.height || window.innerHeight;
+      setDockPos((prev) => ({
+        x: Math.max(8, Math.min(containerW - 200, prev.x)),
+        y: Math.max(8, Math.min(containerH - 60, prev.y)),
+      }));
+      setSearchPos((prev) => ({
+        x: Math.max(8, Math.min(containerW - 240, prev.x)),
+        y: Math.max(8, Math.min(containerH - 60, prev.y)),
+      }));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [containerRef]);
+
   // Draggable Bottom Dock & Popover coordinates so user can freely drag the bottom tabs launcher and popup anywhere over the map
   const [popoverOffset, setPopoverOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const popoverDragRef = useRef<{
@@ -1150,13 +1322,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
     menuOpen || satellitePickerOpen ? (
       <div
         data-testid="floating-vertical-dropdown"
-        className={`${
-          isDesktopLg
-            ? `absolute w-[380px] ${
-                dropdownSide === 'right' ? 'left-0 top-12' : 'right-0 top-12'
-              }`
-            : 'pointer-events-auto w-full max-w-[min(calc(100vw-20px),395px)] self-start'
-        } max-h-[min(66dvh,550px)] overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full bg-slate-950/96 border border-white/15 rounded-2xl shadow-2xl p-3 text-slate-100 flex flex-col gap-2.5 z-50`}
+        className="w-[360px] sm:w-[410px] max-h-[min(66dvh,550px)] overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full bg-slate-950/96 border border-white/15 rounded-2xl shadow-2xl p-3 text-slate-100 flex flex-col gap-2.5 z-50 pointer-events-auto"
       >
         {/* Dropdown Header */}
         <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/10">
@@ -2565,258 +2731,410 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
 
   return (
     <>
-      {/* 1. TOP RESPONSIVE HEADER DOCK */}
-      <div className="absolute top-3 inset-x-3 sm:inset-x-4 z-30 pointer-events-none flex flex-wrap items-center justify-between gap-2.5">
-        {/* Left / Start: Smart Location Search Bar with Autocomplete */}
-        <div className="pointer-events-auto shrink-0">
-          <MapLocationSearchBar
-            language={language}
-            onSelectLocation={(lat, lng) => {
-              onFlyToPresetRegion(lat, lng, 6000, -50);
-            }}
-          />
+      {/* 1. DRAGGABLE LOCATION SEARCH BAR */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${searchPos.x}px`,
+          top: `${searchPos.y}px`,
+          zIndex: 35,
+          touchAction: 'none',
+        }}
+        onPointerDown={handleSearchPointerDown}
+        onPointerMove={handleSearchPointerMove}
+        onPointerUp={handleSearchPointerUp}
+        className={`pointer-events-auto flex items-center gap-1.5 p-1 rounded-2xl bg-slate-950/92 backdrop-blur-2xl border border-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.65)] ${
+          isSearchDragging ? 'ring-2 ring-emerald-400 cursor-grabbing shadow-2xl scale-[1.02]' : ''
+        } transition-shadow select-none`}
+      >
+        {/* Tactile Drag Handle */}
+        <div
+          data-drag-handle="true"
+          className="ps-1.5 pe-0.5 py-1 text-slate-400 hover:text-white cursor-grab active:cursor-grabbing flex items-center gap-0.5 rounded-lg hover:bg-white/10"
+          title={isAr ? 'اسحب شريط البحث لأي مكان في الشاشة' : 'Drag search bar'}
+        >
+          <GripVertical className="w-4 h-4 text-emerald-400" />
         </div>
 
-        {/* Right / End: Farmer Simple Bar OR Expert GIS Command Dock */}
-        <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
-          {!isExpertMode ? (
-            /* SIMPLE FARMER BAR (DEFAULT FOR ALL FARMERS) */
-            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-950/92 backdrop-blur-xl border border-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.6)] text-xs text-white">
-              {/* Button 1: Best Crop For Your Land */}
-              <button
-                type="button"
-                onClick={() => setFarmerModalOpen('crop')}
-                className="h-8 sm:h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/30 transition-all cursor-pointer"
-                title={isAr ? 'أفضل المحاصيل المناسبة لأرضك هذا الموسم' : 'Best crops for your land'}
-              >
-                <Sprout className="w-4 h-4 text-emerald-200 shrink-0" />
-                <span className="whitespace-nowrap">{isAr ? 'أفضل زرعة لأرضك 🌾' : 'Best Crop 🌾'}</span>
-              </button>
+        {/* Search Bar Input Component */}
+        <MapLocationSearchBar
+          language={language}
+          onSelectLocation={(lat, lng) => {
+            onFlyToPresetRegion(lat, lng, 6000, -50);
+          }}
+        />
 
-              {/* Button 2: Water & Irrigation Status */}
-              <button
-                type="button"
-                onClick={() => setFarmerModalOpen('water')}
-                className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-sky-950/80 hover:bg-sky-900 border border-sky-500/40 text-sky-200 font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                title={isAr ? 'حالة مياه وري الأرض وتوقعات المطر' : 'Water & irrigation status'}
-              >
-                <Droplets className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                <span className="hidden sm:inline whitespace-nowrap">{isAr ? 'حالة الري والمياه' : 'Irrigation'}</span>
-              </button>
+        {/* Reset Search Position Button */}
+        <button
+          type="button"
+          onClick={resetSearchPos}
+          className="p-1.5 text-slate-400 hover:text-amber-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+          title={isAr ? 'إعادة شريط البحث لمكانه الأصلي' : 'Reset search position'}
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+      </div>
 
-              {/* Button 3: Crop Health & Vigor */}
-              <button
-                type="button"
-                onClick={() => setFarmerModalOpen('health')}
-                className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-teal-950/80 hover:bg-teal-900 border border-teal-500/40 text-teal-200 font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                title={isAr ? 'صحة ونشاط الزرع بالأقمار الصناعية' : 'Crop health & vigor'}
-              >
-                <Activity className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-                <span className="hidden sm:inline whitespace-nowrap">{isAr ? 'صحة الزرع' : 'Crop Health'}</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/30 text-emerald-200">
-                  {farmAverages.NDVI >= 0.4 ? '85%' : '60%'}
-                </span>
-              </button>
-
-              {/* Divider */}
-              <div className="w-px h-5 bg-white/20 shrink-0" />
-
-              {/* Switch to Expert GIS Mode */}
-              <button
-                type="button"
-                onClick={() => setIsExpertMode(true)}
-                className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-500/50 text-purple-200 font-bold flex items-center gap-1.5 shadow-md shadow-purple-950/40 transition-all cursor-pointer"
-                title={isAr ? 'التبديل إلى وضع الخبراء والمتخصصين (خرائط الأقمار الصناعية والتحليلات المتقدمة)' : 'Switch to Expert GIS Mode'}
-              >
-                <Sliders className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                <span className="whitespace-nowrap">{isAr ? '🔬 وضع الخبراء' : '🔬 Expert Mode'}</span>
-              </button>
+      {/* 2. DRAGGABLE MASTER COMMAND DOCK (FARMER / EXPERT GIS) */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${dockPos.x}px`,
+          top: `${dockPos.y}px`,
+          zIndex: 35,
+          touchAction: 'none',
+        }}
+        onPointerDown={handleDockPointerDown}
+        onPointerMove={handleDockPointerMove}
+        onPointerUp={handleDockPointerUp}
+        className={`pointer-events-auto flex flex-col items-start ${
+          isDockDragging ? 'ring-2 ring-emerald-400 cursor-grabbing shadow-2xl scale-[1.02]' : ''
+        } transition-shadow select-none`}
+      >
+        {!isExpertMode ? (
+          /* SIMPLE FARMER BAR (DEFAULT FOR ALL FARMERS) */
+          <div className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-2xl bg-slate-950/92 backdrop-blur-2xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.7)] text-xs text-white">
+            {/* Tactile Drag Handle */}
+            <div
+              data-drag-handle="true"
+              className="p-1.5 text-slate-400 hover:text-white cursor-grab active:cursor-grabbing rounded-lg hover:bg-white/10 flex items-center gap-1 shrink-0"
+              title={isAr ? 'اسحب الشريط لأي مكان على الخريطة' : 'Drag dock anywhere'}
+            >
+              <GripVertical className="w-4 h-4 text-emerald-400" />
+              <span className="text-[10px] text-slate-400 font-mono hidden xl:inline">{isAr ? 'سحب' : 'Drag'}</span>
             </div>
-          ) : (
-            /* EXPERT GIS BAR (FOR SPECIALISTS ONLY) */
-            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-950/94 backdrop-blur-2xl border border-purple-500/40 shadow-[0_8px_32px_rgba(0,0,0,0.7)] text-xs text-white max-w-[calc(100vw-360px)] overflow-x-auto [scrollbar-width:none]">
-              {/* Return to Simple Farmer Mode */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsExpertMode(false);
+
+            {isDockCollapsed ? (
+              /* Minimized quick icons */
+              <>
+                <button
+                  type="button"
+                  onClick={() => setFarmerModalOpen('crop')}
+                  className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer transition-all"
+                  title={isAr ? 'أفضل زرعة لأرضك 🌾' : 'Best Crop'}
+                >
+                  <Sprout className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFarmerModalOpen('water')}
+                  className="p-2 rounded-xl bg-sky-950/80 border border-sky-400/40 text-sky-200 cursor-pointer transition-all"
+                  title={isAr ? 'حالة الري والمياه 💧' : 'Irrigation'}
+                >
+                  <Droplets className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFarmerModalOpen('health')}
+                  className="p-2 rounded-xl bg-teal-950/80 border border-teal-400/40 text-teal-200 cursor-pointer transition-all"
+                  title={isAr ? 'صحة وخضار الزرع 🌿' : 'Crop Health'}
+                >
+                  <Activity className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsExpertMode(true)}
+                  className="p-2 rounded-xl bg-purple-950/80 border border-purple-400/50 text-purple-200 cursor-pointer transition-all"
+                  title={isAr ? '🔬 وضع الخبراء' : 'Expert Mode'}
+                >
+                  <Sliders className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDockCollapsed(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 cursor-pointer transition-all"
+                  title={isAr ? 'توسيع الشريط' : 'Expand dock'}
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </>
+            ) : (
+              /* Expanded Full Farmer Bar */
+              <>
+                {/* Button 1: Best Crop For Your Land */}
+                <button
+                  type="button"
+                  onClick={() => setFarmerModalOpen('crop')}
+                  className="h-8 sm:h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
+                >
+                  <Sprout className="w-4 h-4 text-emerald-200 shrink-0" />
+                  <span className="whitespace-nowrap">{isAr ? 'أفضل زرعة لأرضك 🌾' : 'Best Crop 🌾'}</span>
+                </button>
+
+                {/* Button 2: Water & Irrigation Status */}
+                <button
+                  type="button"
+                  onClick={() => setFarmerModalOpen('water')}
+                  className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-sky-950/80 hover:bg-sky-900 border border-sky-400/50 text-sky-200 font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                >
+                  <Droplets className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span className="whitespace-nowrap">{isAr ? 'حالة الري والمياه 💧' : 'Irrigation 💧'}</span>
+                </button>
+
+                {/* Button 3: Crop Health & Vigor */}
+                <button
+                  type="button"
+                  onClick={() => setFarmerModalOpen('health')}
+                  className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-teal-950/80 hover:bg-teal-900 border border-teal-400/50 text-teal-200 font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                >
+                  <Activity className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                  <span className="whitespace-nowrap">{isAr ? 'صحة الزرع' : 'Crop Health'}</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 font-bold">
+                    {farmAverages.NDVI >= 0.4 ? '85%' : '60%'}
+                  </span>
+                </button>
+
+                {/* Divider */}
+                <div className="w-px h-5 bg-white/20 shrink-0 mx-0.5" />
+
+                {/* Switch to Expert GIS Mode */}
+                <button
+                  type="button"
+                  onClick={() => setIsExpertMode(true)}
+                  className="h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-400/60 text-purple-200 font-bold flex items-center gap-1.5 shadow-md shadow-purple-950/40 transition-all cursor-pointer active:scale-95"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-purple-300 shrink-0" />
+                  <span className="whitespace-nowrap">{isAr ? '🔬 وضع الخبراء' : '🔬 Expert'}</span>
+                </button>
+
+                {/* Reset Position Button */}
+                <button
+                  type="button"
+                  onClick={resetDockPos}
+                  className="p-1.5 text-slate-400 hover:text-amber-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                  title={isAr ? 'إعادة ضبط موضع الشريط' : 'Reset dock position'}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Collapse Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsDockCollapsed(true)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                  title={isAr ? 'تصغير الشريط' : 'Minimize bar'}
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          /* EXPERT GIS BAR (FOR SPECIALISTS ONLY) */
+          <div className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-2xl bg-slate-950/94 backdrop-blur-2xl border border-purple-500/40 shadow-[0_12px_44px_rgba(0,0,0,0.8)] text-xs text-white max-w-[calc(100vw-30px)] overflow-x-auto [scrollbar-width:none]">
+            {/* Tactile Drag Handle */}
+            <div
+              data-drag-handle="true"
+              className="p-1.5 text-slate-400 hover:text-white cursor-grab active:cursor-grabbing rounded-lg hover:bg-white/10 flex items-center gap-1 shrink-0"
+              title={isAr ? 'اسحب الشريط لأي مكان على الخريطة' : 'Drag dock anywhere'}
+            >
+              <GripVertical className="w-4 h-4 text-purple-400" />
+              <span className="text-[10px] text-slate-400 font-mono hidden xl:inline">{isAr ? 'سحب' : 'Drag'}</span>
+            </div>
+
+            {/* Return to Simple Farmer Mode */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsExpertMode(false);
+                setActiveTopTab('none');
+                setMenuOpen(false);
+              }}
+              className="h-8 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer shrink-0 active:scale-95"
+            >
+              <Sprout className="w-3.5 h-3.5" />
+              <span className="whitespace-nowrap">{isAr ? '🌱 الوضع البسيط' : '🌱 Simple Mode'}</span>
+            </button>
+
+            <div className="w-px h-4 bg-white/15 shrink-0" />
+
+            {/* Tab 1: Layers & Satellites */}
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTopTab === 'layers') {
                   setActiveTopTab('none');
                   setMenuOpen(false);
-                }}
-                className="h-8 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer shrink-0"
-                title={isAr ? 'العودة إلى الوضع البسيط للمزارع' : 'Back to Simple Farmer Mode'}
-              >
-                <Sprout className="w-3.5 h-3.5" />
-                <span className="whitespace-nowrap">{isAr ? '🌱 الوضع البسيط' : '🌱 Simple Mode'}</span>
-              </button>
+                } else {
+                  setActiveTopTab('layers');
+                  setActiveSection('maps');
+                  setMenuOpen(true);
+                }
+              }}
+              className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
+                activeTopTab === 'layers'
+                  ? 'bg-emerald-600 text-white border-emerald-400'
+                  : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="whitespace-nowrap">{isAr ? 'الخرائط والأقمار' : 'Layers'}</span>
+              <span className="font-mono text-[9px] px-1 py-0.2 rounded bg-black/40 text-emerald-300">
+                {unifiedSpec.selectionType === 'thematic' && unifiedSpec.activeThematicMap === 'natural'
+                  ? 'RGB'
+                  : unifiedSpec.badgeCode}
+              </span>
+              {activeTopTab === 'layers' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
 
-              <div className="w-px h-4 bg-white/15 shrink-0" />
-
-              {/* Tab 1: Layers & Satellites */}
+            {/* Tab 2: Time-Lapse & Archive (2014 - 2026) */}
+            <div className="flex items-center gap-1 shrink-0 bg-slate-900/80 p-0.5 rounded-xl border border-white/10">
               <button
                 type="button"
-                onClick={() => {
-                  if (activeTopTab === 'layers') {
-                    setActiveTopTab('none');
-                    setMenuOpen(false);
-                  } else {
-                    setActiveTopTab('layers');
-                    setActiveSection('maps');
-                    setMenuOpen(true);
-                  }
-                }}
-                className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
-                  activeTopTab === 'layers'
-                    ? 'bg-emerald-600 text-white border-emerald-400'
-                    : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
+                onClick={() => setIsTimeLapsePlaying(!isTimeLapsePlaying)}
+                className={`h-7 px-2 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 ${
+                  isTimeLapsePlaying
+                    ? 'bg-sky-500 text-white border-sky-300 animate-pulse'
+                    : 'bg-slate-950/80 text-sky-400 border-white/5 hover:bg-slate-800'
                 }`}
               >
-                <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="whitespace-nowrap">{isAr ? 'الخرائط والأقمار' : 'Layers'}</span>
-                <span className="font-mono text-[9px] px-1 py-0.2 rounded bg-black/40 text-emerald-300">
-                  {unifiedSpec.selectionType === 'thematic' && unifiedSpec.activeThematicMap === 'natural'
-                    ? 'RGB'
-                    : unifiedSpec.badgeCode}
-                </span>
-                {activeTopTab === 'layers' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {isTimeLapsePlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                <span className="text-[10px] font-bold">{isTimeLapsePlaying ? (isAr ? 'إيقاف' : 'Pause') : (isAr ? 'تطور' : 'Play')}</span>
               </button>
 
-              {/* Tab 2: Time-Lapse & Archive (2014 - 2026) */}
-              <div className="flex items-center gap-1 shrink-0 bg-slate-900/80 p-0.5 rounded-xl border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setIsTimeLapsePlaying(!isTimeLapsePlaying)}
-                  title={isAr ? 'تشغيل العرض التتابعي' : 'Play Time-Lapse'}
-                  className={`h-7 px-2 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 ${
-                    isTimeLapsePlaying
-                      ? 'bg-sky-500 text-white border-sky-300 animate-pulse'
-                      : 'bg-slate-950/80 text-sky-400 border-white/5 hover:bg-slate-800'
-                  }`}
-                >
-                  {isTimeLapsePlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                  <span className="text-[10px] font-bold">{isTimeLapsePlaying ? (isAr ? 'إيقاف' : 'Pause') : (isAr ? 'تطور' : 'Play')}</span>
-                </button>
-
-                <div className="flex items-center gap-1 overflow-x-auto max-w-[160px] sm:max-w-none [scrollbar-width:none]">
-                  {SATELLITE_VINTAGES_CATALOG.map((v) => {
-                    const isSel = activeSatelliteVintageId === v.id;
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => handleSelectVintage(v.id)}
-                        className={`h-7 px-1.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer border ${
-                          isSel
-                            ? 'bg-sky-600 text-white border-sky-400'
-                            : 'bg-slate-950/50 text-slate-400 border-transparent hover:text-white'
-                        }`}
-                      >
-                        {v.year}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !isComparisonMode;
-                    setIsComparisonMode(next);
-                    if (next) {
-                      setActiveTopTab('timelapse_compare');
-                      setMenuOpen(false);
-                    } else if (activeTopTab === 'timelapse_compare') {
-                      setActiveTopTab('none');
-                    }
-                  }}
-                  className={`h-7 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer border flex items-center gap-1 ${
-                    isComparisonMode
-                      ? 'bg-amber-600 text-white border-amber-400'
-                      : 'bg-slate-950/80 text-slate-300 border-white/5 hover:bg-slate-800'
-                  }`}
-                >
-                  <Sliders className="w-3 h-3 text-amber-400" />
-                  <span>{isAr ? 'مقارنة' : 'Compare'}</span>
-                </button>
+              <div className="flex items-center gap-1 overflow-x-auto max-w-[160px] sm:max-w-none [scrollbar-width:none]">
+                {SATELLITE_VINTAGES_CATALOG.map((v) => {
+                  const isSel = activeSatelliteVintageId === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => handleSelectVintage(v.id)}
+                      className={`h-7 px-1.5 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer border ${
+                        isSel
+                          ? 'bg-sky-600 text-white border-sky-400'
+                          : 'bg-slate-950/50 text-slate-400 border-transparent hover:text-white'
+                      }`}
+                    >
+                      {v.year}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Tab 3: Field Tools */}
               <button
                 type="button"
                 onClick={() => {
-                  if (activeTopTab === 'fields') {
-                    setActiveTopTab('none');
+                  const next = !isComparisonMode;
+                  setIsComparisonMode(next);
+                  if (next) {
+                    setActiveTopTab('timelapse_compare');
                     setMenuOpen(false);
-                  } else {
-                    setActiveTopTab('fields');
-                    setActiveSection('zones');
-                    setMenuOpen(true);
+                  } else if (activeTopTab === 'timelapse_compare') {
+                    setActiveTopTab('none');
                   }
                 }}
-                className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
-                  activeTopTab === 'fields'
+                className={`h-7 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer border flex items-center gap-1 ${
+                  isComparisonMode
                     ? 'bg-amber-600 text-white border-amber-400'
-                    : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
+                    : 'bg-slate-950/80 text-slate-300 border-white/5 hover:bg-slate-800'
                 }`}
               >
-                <Sprout className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="whitespace-nowrap">{isAr ? 'أدوات الحقل' : 'Tools'}</span>
-              </button>
-
-              {/* Tab 4: Risk Alerts */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeTopTab === 'risk') {
-                    setActiveTopTab('none');
-                  } else {
-                    setActiveTopTab('risk');
-                    setMenuOpen(false);
-                  }
-                }}
-                className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
-                  activeTopTab === 'risk'
-                    ? 'bg-rose-600 text-white border-rose-400'
-                    : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
-                }`}
-              >
-                <Activity className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                <span className="whitespace-nowrap">{isAr ? 'الإنذار' : 'Alerts'}</span>
-                <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold">
-                  {farmAverages.NDVI < 0.25 ? '82%' : '48%'}
-                </span>
-              </button>
-
-              {/* Tab 5: 3D Camera / Navigation */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeTopTab === 'nav') {
-                    setActiveTopTab('none');
-                    setMenuOpen(false);
-                  } else {
-                    setActiveTopTab('nav');
-                    setActiveSection('view');
-                    setMenuOpen(true);
-                  }
-                }}
-                className={`h-8 px-2 rounded-xl font-bold flex items-center gap-1 transition-all cursor-pointer border shrink-0 ${
-                  activeTopTab === 'nav'
-                    ? 'bg-indigo-600 text-white border-indigo-400'
-                    : 'bg-slate-900/80 text-slate-300 border-white/10 hover:bg-slate-800'
-                }`}
-              >
-                <Compass className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{viewMode3D ? '3D' : '2D'}</span>
+                <Sliders className="w-3 h-3 text-amber-400" />
+                <span>{isAr ? 'مقارنة' : 'Compare'}</span>
               </button>
             </div>
-          )}
-        </div>
 
-        {/* Downward Dropdown Sheets (Positioned under Expert Bar) */}
-        {verticalDropdownNode}
-        {timelapseCompareNode}
-        {riskSectionNode}
+            {/* Tab 3: Field Tools */}
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTopTab === 'fields') {
+                  setActiveTopTab('none');
+                  setMenuOpen(false);
+                } else {
+                  setActiveTopTab('fields');
+                  setActiveSection('zones');
+                  setMenuOpen(true);
+                }
+              }}
+              className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
+                activeTopTab === 'fields'
+                  ? 'bg-amber-600 text-white border-amber-400'
+                  : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
+              }`}
+            >
+              <Sprout className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="whitespace-nowrap">{isAr ? 'أدوات الحقل' : 'Tools'}</span>
+            </button>
+
+            {/* Tab 4: Risk Alerts */}
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTopTab === 'risk') {
+                  setActiveTopTab('none');
+                } else {
+                  setActiveTopTab('risk');
+                  setMenuOpen(false);
+                }
+              }}
+              className={`h-8 px-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
+                activeTopTab === 'risk'
+                  ? 'bg-rose-600 text-white border-rose-400'
+                  : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span className="whitespace-nowrap">{isAr ? 'الإنذار' : 'Alerts'}</span>
+              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold">
+                {farmAverages.NDVI < 0.25 ? '82%' : '48%'}
+              </span>
+            </button>
+
+            {/* Tab 5: 3D Camera / Navigation */}
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTopTab === 'nav') {
+                  setActiveTopTab('none');
+                  setMenuOpen(false);
+                } else {
+                  setActiveTopTab('nav');
+                  setActiveSection('view');
+                  setMenuOpen(true);
+                }
+              }}
+              className={`h-8 px-2 rounded-xl font-bold flex items-center gap-1 transition-all cursor-pointer border shrink-0 ${
+                activeTopTab === 'nav'
+                  ? 'bg-indigo-600 text-white border-indigo-400'
+                  : 'bg-slate-900/80 text-slate-300 border-white/10 hover:bg-slate-800'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5 text-indigo-400" />
+              <span>{viewMode3D ? '3D' : '2D'}</span>
+            </button>
+
+            {/* Reset Position Button */}
+            <button
+              type="button"
+              onClick={resetDockPos}
+              className="p-1.5 text-slate-400 hover:text-amber-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              title={isAr ? 'إعادة ضبط موضع الشريط' : 'Reset dock position'}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Dropdown Sheets Attached to Dock */}
+        {(verticalDropdownNode || timelapseCompareNode || riskSectionNode) && (
+          <div
+            className={`pointer-events-auto absolute ${
+              dockPos.y > (typeof window !== 'undefined' ? window.innerHeight * 0.55 : 400)
+                ? 'bottom-full mb-2'
+                : 'top-full mt-2'
+            } ${
+              dockPos.x > (typeof window !== 'undefined' ? window.innerWidth * 0.55 : 600)
+                ? 'end-0'
+                : 'start-0'
+            } z-50 animate-fade-in`}
+          >
+            {verticalDropdownNode}
+            {timelapseCompareNode}
+            {riskSectionNode}
+          </div>
+        )}
       </div>
 
       {/* 2. SIMPLE FARMER ACTION MODALS */}
