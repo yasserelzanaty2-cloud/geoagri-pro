@@ -553,7 +553,7 @@ export default function App() {
   );
 
   const activePushAlerts = useMemo<OpenMeteoZonePushAlert[]>(() => {
-    const zNameAr = activeZoneRecord?.nameAr || 'زونة الدراسة المحددة';
+    const zNameAr = activeZoneRecord?.nameAr || 'مزرعتي المحددة';
     const zNameEn = activeZoneRecord?.nameEn || 'Selected Study Zone';
     return evaluateOpenMeteoZonePushAlerts(
       forecast14,
@@ -613,7 +613,7 @@ export default function App() {
             ? 'GeoAgri Pro — تنبيهات Open-Meteo مفعّلة'
             : 'GeoAgri Pro — Open-Meteo Push Alerts Active',
           language === 'ar'
-            ? 'سيتم إخطارك فور توقع أمطار غزيرة أو موجات حر شديدة تؤثر على زونة الدراسة المحددة.'
+            ? 'سيتم إخطارك فور توقع أمطار غزيرة أو موجات حر شديدة تؤثر على مزرعتك المحددة.'
             : 'You will be notified immediately when heavy rainfall or extreme heatwaves threaten your study zone.',
           `push-armed-${activeZoneId || 'global'}`
         );
@@ -806,7 +806,7 @@ export default function App() {
     if (outcome.status === 'popup_blocked') {
       setAuthPopupAlert({
         messageAr: savedLocally
-          ? 'تم حفظ الزونة محلياً! المتصفح حظر نافذة تسجيل الدخول المنبثقة — يُرجى السماح بالنوافذ المنبثقة لهذا الموقع أو فتح المنصة في تبويب مستقل لمزامنتها بحساب جوجل.'
+          ? 'تم حفظ المزرعة محلياً! المتصفح حظر نافذة تسجيل الدخول المنبثقة — يُرجى السماح بالنوافذ المنبثقة لهذا الموقع أو فتح المنصة في تبويب مستقل لمزامنتها بحساب جوجل.'
           : 'المتصفح حظر نافذة تسجيل الدخول المنبثقة. يُرجى السماح بالنوافذ المنبثقة (Pop-ups) لهذا الموقع من شريط العنوان أو فتح المنصة في تبويب مستقل ثم المحاولة مجدداً.',
         messageEn: savedLocally
           ? 'Zone saved locally! Browser blocked the Google Sign-In popup — allow pop-ups for this site or open in a standalone tab to enable cloud sync.'
@@ -889,7 +889,7 @@ export default function App() {
         handleCreateZone(draft, outcome.user.uid);
         setPdfBannerMessage(
           language === 'ar'
-            ? `تم حفظ الزونة ومزامنتها سحابياً مع حساب Google (${outcome.user.displayName || outcome.user.email}).`
+            ? `تم حفظ المزرعة ومزامنتها سحابياً مع حساب Google (${outcome.user.displayName || outcome.user.email}).`
             : `Zone saved & synced to Google account (${outcome.user.displayName || outcome.user.email}).`
         );
         setTimeout(() => setPdfBannerMessage(null), 5500);
@@ -1151,7 +1151,7 @@ export default function App() {
     if (vertices.length < 3) return;
     const result = await generateAndDownloadFarmPdfReport({
       language,
-      zoneNameAr: activeZoneObj ? activeZoneObj.nameAr : 'زونة الدراسة المحددة',
+      zoneNameAr: activeZoneObj ? activeZoneObj.nameAr : 'مزرعتي المحددة',
       zoneNameEn: activeZoneObj ? activeZoneObj.nameEn : 'Selected Study Zone',
       centroid,
       area,
@@ -1484,13 +1484,13 @@ export default function App() {
       </div>
       <h2 className="text-lg font-bold text-slate-900 dark:text-white">
         {isAr
-          ? 'يرجى تحديد زونة دراسة على الخريطة الشاملة أولاً'
-          : 'Please Define a Study Zone on the Full-Screen Atlas First'}
+          ? 'يرجى تحديد مزرعة على الخريطة أولاً'
+          : 'Please Define a Farm on the Full-Screen Atlas First'}
       </h2>
       <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
         {isAr
-          ? 'تم إزالة جميع الزونات العشوائية والمسبقة لكي تبدأ الدراسة على أرضك الفعلية فقط. انتقل إلى الخريطة الشاملة وحدد زونة واحدة أو عدة زونات، وقم بتسميتها لعرض بياناتها المستقلة.'
-          : 'All preset and mock zones have been removed so you can analyze your own selected land. Open the Full-Screen Atlas, draw one or more zones, and name them to view independent telemetry.'}
+          ? 'تم إزالة جميع المزارع العشوائية والمسبقة لكي تبدأ الدراسة على أرضك الفعلية فقط. انتقل إلى الخريطة وحدد مزرعة واحدة أو عدة مزارع، وقم بتسميتها لعرض بياناتها المستقلة.'
+          : 'All preset and mock zones have been removed so you can analyze your own selected land. Open the Full-Screen Atlas, draw one or more farms, and name them to view independent telemetry.'}
       </p>
       <button
         type="button"
@@ -1499,7 +1499,7 @@ export default function App() {
       >
         <PlusCircle className="w-4 h-4" />
         <span>
-          {isAr ? 'انتقل إلى الخريطة الشاملة لتحديد زونة الدراسة' : 'Go to Atlas to Draw Study Zone'}
+          {isAr ? 'انتقل إلى الخريطة لتحديد مزرعتك' : 'Go to Atlas to Draw Farm'}
         </span>
       </button>
     </div>
@@ -1617,7 +1617,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleDownloadPdfReport}
-                aria-label={isAr ? 'تحميل تقرير الزونة PDF' : 'Download Zone PDF Report'}
+                aria-label={isAr ? 'تحميل تقرير المزرعة PDF' : 'Download Farm PDF Report'}
                 className="hidden lg:flex min-h-[38px] px-3 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0 items-center gap-1.5 cursor-pointer"
               >
                 <FileDown className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />

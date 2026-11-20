@@ -31,6 +31,7 @@ import {
   Radio,
   RotateCcw,
   Satellite,
+  Search,
   SkipBack,
   SkipForward,
   Sliders,
@@ -783,6 +784,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
     // Desktop: top right (or top left for LTR)
     return { x: 14, y: 12 };
   });
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearchDragging, setIsSearchDragging] = useState(false);
   const searchDragRef = useRef<{
     startX: number;
@@ -875,7 +877,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
     };
   });
   const [isDockDragging, setIsDockDragging] = useState(false);
-  const [isDockCollapsed, setIsDockCollapsed] = useState(false);
+  const [isDockCollapsed, setIsDockCollapsed] = useState(true);
   const dockDragRef = useRef<{
     startX: number;
     startY: number;
@@ -945,6 +947,91 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
     } catch {}
   };
 
+  // --- 3. DRAGGABLE ZOOM CONTROLS ---
+  const [zoomPos, setZoomPos] = useState<{ x: number; y: number }>(() => {
+    const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    try {
+      const saved = localStorage.getItem('geoagri_pos_zoom_v3');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          return {
+            x: Math.max(8, Math.min(screenW - 52, parsed.x)),
+            y: Math.max(8, Math.min(screenH - 120, parsed.y)),
+          };
+        }
+      }
+    } catch {}
+    return { x: Math.max(8, screenW - 52), y: 72 };
+  });
+  const [isZoomDragging, setIsZoomDragging] = useState(false);
+  const zoomDragRef = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    hasMoved: boolean;
+  } | null>(null);
+  const latestZoomPosRef = useRef(zoomPos);
+  latestZoomPosRef.current = zoomPos;
+
+  const handleZoomPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button:not([data-drag-handle="true"])')) return;
+    zoomDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: zoomPos.x,
+      origY: zoomPos.y,
+      hasMoved: false,
+    };
+    setIsZoomDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleZoomPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = zoomDragRef.current;
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (Math.hypot(dx, dy) > 2) drag.hasMoved = true;
+    const bounds = containerRef.current?.getBoundingClientRect();
+    const containerW = bounds?.width || window.innerWidth;
+    const containerH = bounds?.height || window.innerHeight;
+    const maxW = Math.max(8, containerW - 52);
+    const maxH = Math.max(8, containerH - 120);
+
+    const next = {
+      x: Math.max(8, Math.min(maxW, drag.origX + dx)),
+      y: Math.max(8, Math.min(maxH, drag.origY + dy)),
+    };
+    latestZoomPosRef.current = next;
+    setZoomPos(next);
+  };
+
+  const handleZoomPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    if (zoomDragRef.current?.hasMoved) {
+      try {
+        localStorage.setItem('geoagri_pos_zoom_v3', JSON.stringify(latestZoomPosRef.current));
+      } catch {}
+    }
+    zoomDragRef.current = null;
+    setIsZoomDragging(false);
+  };
+
+  const resetZoomPos = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const def = { x: Math.max(8, screenW - 52), y: 72 };
+    setZoomPos(def);
+    try {
+      localStorage.removeItem('geoagri_pos_zoom_v3');
+    } catch {}
+  };
+
   // Keep floating widgets safely inside boundaries on window resize
   useEffect(() => {
     const handleResize = () => {
@@ -958,6 +1045,10 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
       setSearchPos((prev) => ({
         x: Math.max(8, Math.min(Math.max(10, containerW - 220), prev.x)),
         y: Math.max(8, Math.min(Math.max(10, containerH - 60), prev.y)),
+      }));
+      setZoomPos((prev) => ({
+        x: Math.max(8, Math.min(Math.max(10, containerW - 52), prev.x)),
+        y: Math.max(8, Math.min(Math.max(10, containerH - 120), prev.y)),
       }));
     };
     window.addEventListener('resize', handleResize);
@@ -2284,7 +2375,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
                       }`}
                     >
                       <Square className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'مربع زونة' : 'Box Zone'}</span>
+                      <span>{isAr ? 'مزرعة بمستطيل' : 'Box Farm'}</span>
                     </button>
                   </div>
 
@@ -2296,7 +2387,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
                         className="py-1.5 px-2.5 rounded-xl text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        <span>{isAr ? 'حفظ الزونة' : 'Save Zone'}</span>
+                        <span>{isAr ? 'حفظ المزرعة' : 'Save Farm'}</span>
                       </button>
                       <button
                         type="button"
@@ -2534,7 +2625,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
                           className="py-1.5 px-2 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-400/50 text-[11px] font-bold text-emerald-200 flex items-center justify-center gap-1 cursor-pointer"
                         >
                           <MapPin className="w-3.5 h-3.5" />
-                          <span>{isAr ? 'تقريب للزونة' : 'Zoom Zone'}</span>
+                          <span>{isAr ? 'تقريب لمزرعتي' : 'Zoom Farm'}</span>
                         </button>
                       )}
                     </div>
@@ -2738,8 +2829,8 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
               ? 'وضع المربع: انقر الزاوية الأولى ثم الزاوية المقابلة على الكوكب'
               : 'Box Mode: Click corner 1 then corner 2 on globe'
             : isAr
-            ? `نقر حر (${vertices.length} نقاط): انقر لتحديد رؤوس الزونة`
-            : `Freehand (${vertices.length} pts): Click vertices on globe`}
+            ? `نقر حر (${vertices.length} نقاط): انقر لتحديد حدود مزرعتك`
+            : `Freehand (${vertices.length} pts): Click boundaries on globe`}
         </span>
         {vertices.length >= 3 && (
           <button
@@ -2747,7 +2838,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
             onClick={onSaveCurrentPolygonAsDraft}
             className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer"
           >
-            {isAr ? 'اعتماد الزونة' : 'Confirm Zone'}
+            {isAr ? 'اعتماد المزرعة' : 'Confirm Farm'}
           </button>
         )}
         <button
@@ -2762,7 +2853,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
 
   return (
     <>
-      {/* 1. DRAGGABLE LOCATION SEARCH BAR */}
+      {/* 1. DRAGGABLE LOCATION SEARCH BAR (COLLAPSIBLE) */}
       <div
         style={{
           position: 'absolute',
@@ -2776,33 +2867,55 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
         onPointerUp={handleSearchPointerUp}
         className={`pointer-events-auto flex items-center gap-1.5 p-1 rounded-2xl bg-slate-950/92 backdrop-blur-2xl border border-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.65)] ${
           isSearchDragging ? 'ring-2 ring-emerald-400 cursor-grabbing shadow-2xl scale-[1.02]' : ''
-        } transition-shadow select-none`}
+        } transition-all select-none`}
       >
         {/* Tactile Drag Handle */}
         <div
           data-drag-handle="true"
           className="ps-1.5 pe-0.5 py-1 text-slate-400 hover:text-white cursor-grab active:cursor-grabbing flex items-center gap-0.5 rounded-lg hover:bg-white/10"
-          title={isAr ? 'اسحب شريط البحث لأي مكان في الشاشة' : 'Drag search bar'}
+          title={isAr ? 'اسحب زر البحث لأي مكان في الشاشة' : 'Drag search button'}
         >
-          <GripVertical className="w-4 h-4 text-emerald-400" />
+          <GripVertical className="w-3.5 h-3.5 text-emerald-400" />
         </div>
 
-        {/* Search Bar Input Component */}
-        <MapLocationSearchBar
-          language={language}
-          onSelectLocation={(lat, lng) => {
-            onFlyToPresetRegion(lat, lng, 6000, -50);
-          }}
-        />
+        {!isSearchOpen ? (
+          <button
+            type="button"
+            onClick={() => setIsSearchOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-400/40 text-emerald-200 text-xs font-bold cursor-pointer transition-all active:scale-95"
+            title={isAr ? 'اضغط للبحث عن قرية أو مركز أو موقع' : 'Click to search location'}
+          >
+            <Search className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="text-[11px] font-semibold">{isAr ? 'ابحث عن قريتك' : 'Search'}</span>
+          </button>
+        ) : (
+          <>
+            <MapLocationSearchBar
+              language={language}
+              onSelectLocation={(lat, lng) => {
+                onFlyToPresetRegion(lat, lng, 6000, -50);
+              }}
+            />
+            {/* Close / Collapse Search Button */}
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(false)}
+              className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              title={isAr ? 'إغلاق شريط البحث' : 'Close search bar'}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </>
+        )}
 
         {/* Reset Search Position Button */}
         <button
           type="button"
           onClick={resetSearchPos}
-          className="p-1.5 text-slate-400 hover:text-amber-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-          title={isAr ? 'إعادة شريط البحث لمكانه الأصلي' : 'Reset search position'}
+          className="p-1 text-slate-400 hover:text-amber-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+          title={isAr ? 'إعادة ضبط موضع البحث' : 'Reset search position'}
         >
-          <RotateCcw className="w-3.5 h-3.5" />
+          <RotateCcw className="w-3 h-3" />
         </button>
       </div>
 
@@ -2824,148 +2937,125 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
       >
         {!isExpertMode ? (
           /* SIMPLE FARMER BAR (DEFAULT FOR ALL FARMERS) */
-          <div className="flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-2xl bg-slate-950/92 backdrop-blur-2xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.7)] text-xs text-white max-w-[calc(100vw-16px)]">
-            {/* Tactile Drag Handle */}
-            <div
-              data-drag-handle="true"
-              className="p-1 sm:p-1.5 text-slate-400 hover:text-white cursor-grab active:cursor-grabbing rounded-lg hover:bg-white/10 flex items-center gap-1 shrink-0"
-              title={isAr ? 'اضغط واسحب الشريط لأي مكان على الخريطة' : 'Click and drag dock anywhere'}
-            >
-              <GripVertical className="w-4 h-4 text-emerald-400" />
-              <span className="text-[10px] text-emerald-300 font-medium hidden md:inline">{isAr ? 'سحب' : 'Drag'}</span>
+          isDockCollapsed ? (
+            /* Merged Single Small Floating Tab */
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-950/92 backdrop-blur-2xl border border-emerald-500/40 shadow-[0_12px_40px_rgba(0,0,0,0.7)] text-xs text-white">
+              {/* Tactile Drag Handle */}
+              <div
+                data-drag-handle="true"
+                className="p-1 text-slate-400 hover:text-white cursor-grab active:cursor-grabbing rounded-lg hover:bg-white/10 flex items-center gap-1 shrink-0"
+                title={isAr ? 'اضغط واسحب التابة لأي مكان على الخريطة' : 'Click and drag tab anywhere'}
+              >
+                <GripVertical className="w-3.5 h-3.5 text-emerald-400" />
+              </div>
+
+              {/* Master Floating Pill - Click to Open Tabs */}
+              <button
+                type="button"
+                onClick={() => setIsDockCollapsed(false)}
+                className="h-7 px-2.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/45 border border-emerald-400/50 text-emerald-200 font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shrink-0"
+                title={isAr ? 'اضغط لعرض تابات وأدوات المزرعة' : 'Click to show farm tool tabs'}
+              >
+                <Sprout className="w-3.5 h-3.5 text-emerald-300" />
+                <span className="text-[11px] font-bold">{isAr ? 'أدوات مزرعتي 🌾' : 'Farm Tools 🌾'}</span>
+                <ChevronDown className="w-3 h-3 text-emerald-300 animate-pulse" />
+              </button>
+
+              {/* Reset Dock Position */}
+              <button
+                type="button"
+                onClick={resetDockPos}
+                className="p-1 text-slate-400 hover:text-amber-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                title={isAr ? 'إعادة ضبط موضع التابة' : 'Reset tab position'}
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
             </div>
+          ) : (
+            /* Expanded Full Farmer Tabs Bar */
+            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-2xl bg-slate-950/94 backdrop-blur-2xl border border-emerald-500/50 shadow-[0_12px_40px_rgba(0,0,0,0.75)] text-xs text-white max-w-[calc(100vw-16px)]">
+              {/* Tactile Drag Handle */}
+              <div
+                data-drag-handle="true"
+                className="p-1 text-slate-400 hover:text-white cursor-grab active:cursor-grabbing rounded-lg hover:bg-white/10 flex items-center gap-0.5 shrink-0"
+                title={isAr ? 'اضغط واسحب الشريط لأي مكان على الخريطة' : 'Click and drag dock anywhere'}
+              >
+                <GripVertical className="w-3.5 h-3.5 text-emerald-400" />
+              </div>
 
-            {isDockCollapsed ? (
-              /* Minimized quick icons */
-              <>
-                <button
-                  type="button"
-                  onClick={() => setFarmerModalOpen('crop')}
-                  className="p-1.5 sm:p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer transition-all"
-                  title={isAr ? 'أفضل زرعة لأرضك 🌾' : 'Best Crop'}
-                >
-                  <Sprout className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFarmerModalOpen('water')}
-                  className="p-1.5 sm:p-2 rounded-xl bg-sky-950/80 border border-sky-400/40 text-sky-200 cursor-pointer transition-all"
-                  title={isAr ? 'حالة الري والمياه 💧' : 'Irrigation'}
-                >
-                  <Droplets className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFarmerModalOpen('health')}
-                  className="p-1.5 sm:p-2 rounded-xl bg-teal-950/80 border border-teal-400/40 text-teal-200 cursor-pointer transition-all"
-                  title={isAr ? 'صحة وخضار الزرع 🌿' : 'Crop Health'}
-                >
-                  <Activity className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsExpertMode(true)}
-                  className="p-1.5 sm:p-2 rounded-xl bg-purple-950/80 border border-purple-400/50 text-purple-200 cursor-pointer transition-all"
-                  title={isAr ? '🔬 وضع الخبراء' : 'Expert Mode'}
-                >
-                  <Sliders className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsDockCollapsed(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 cursor-pointer transition-all"
-                  title={isAr ? 'توسيع الشريط' : 'Expand dock'}
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-              </>
-            ) : (
-              /* Expanded Full Farmer Bar */
-              <>
-                {/* Button 1: Best Crop For Your Land */}
-                <button
-                  type="button"
-                  onClick={() => setFarmerModalOpen('crop')}
-                  className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 sm:gap-1.5 shadow-sm shadow-emerald-600/30 transition-all cursor-pointer active:scale-95 shrink-0"
-                  title={isAr ? 'أفضل محصول مناسب لأرضك ومناخها ومياهها' : 'Best crop for your soil and climate'}
-                >
-                  <Sprout className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
-                  <span className="text-[11px] sm:text-xs whitespace-nowrap">
-                    <span className="inline md:hidden">{isAr ? 'المحصول' : 'Crop'}</span>
-                    <span className="hidden md:inline">{isAr ? 'أفضل زرعة لأرضك 🌾' : 'Best Crop 🌾'}</span>
-                  </span>
-                </button>
+              {/* Header Pill to Collapse */}
+              <button
+                type="button"
+                onClick={() => setIsDockCollapsed(true)}
+                className="h-7 px-2 rounded-xl bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-400/40 text-emerald-200 font-bold flex items-center gap-1 cursor-pointer transition-all shrink-0"
+                title={isAr ? 'تصغير التابة' : 'Minimize tab'}
+              >
+                <Sprout className="w-3.5 h-3.5 text-emerald-300" />
+                <span className="text-[11px] font-bold">{isAr ? 'أدوات مزرعتي' : 'Farm Tools'}</span>
+                <ChevronUp className="w-3 h-3 text-emerald-300" />
+              </button>
 
-                {/* Button 2: Water & Irrigation Status */}
-                <button
-                  type="button"
-                  onClick={() => setFarmerModalOpen('water')}
-                  className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-sky-950/85 hover:bg-sky-900 border border-sky-400/50 text-sky-200 font-bold flex items-center gap-1 sm:gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
-                  title={isAr ? 'حالة مياه وري الأرض وتوقعات المطر' : 'Irrigation & soil moisture'}
-                >
-                  <Droplets className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span className="text-[11px] sm:text-xs whitespace-nowrap">
-                    <span className="inline md:hidden">{isAr ? 'الري' : 'Water'}</span>
-                    <span className="hidden md:inline">{isAr ? 'حالة الري والمياه 💧' : 'Irrigation 💧'}</span>
-                  </span>
-                </button>
+              {/* Button 1: Best Crop For Your Land */}
+              <button
+                type="button"
+                onClick={() => setFarmerModalOpen('crop')}
+                className="h-7 px-2 sm:px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
+                title={isAr ? 'أفضل محصول مناسب لأرضك ومناخها ومياهها' : 'Best crop for your soil and climate'}
+              >
+                <Sprout className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
+                <span className="text-[11px] font-bold">{isAr ? 'أفضل زرعة 🌾' : 'Best Crop 🌾'}</span>
+              </button>
 
-                {/* Button 3: Crop Health & Vigor */}
-                <button
-                  type="button"
-                  onClick={() => setFarmerModalOpen('health')}
-                  className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-teal-950/85 hover:bg-teal-900 border border-teal-400/50 text-teal-200 font-bold flex items-center gap-1 sm:gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
-                  title={isAr ? 'مؤشر اخضرار وصحة النباتات من القمر الصناعي' : 'Vegetation health from satellites'}
-                >
-                  <Activity className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-                  <span className="text-[11px] sm:text-xs whitespace-nowrap">
-                    <span className="inline md:hidden">{isAr ? 'الصحة' : 'Health'}</span>
-                    <span className="hidden md:inline">{isAr ? 'صحة الزرع' : 'Crop Health'}</span>
-                  </span>
-                  <span className="text-[9px] sm:text-[10px] font-mono px-1 sm:px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-200 font-bold">
-                    {farmAverages.NDVI >= 0.4 ? '85%' : '60%'}
-                  </span>
-                </button>
+              {/* Button 2: Water & Irrigation Status */}
+              <button
+                type="button"
+                onClick={() => setFarmerModalOpen('water')}
+                className="h-7 px-2 sm:px-2.5 rounded-xl bg-sky-950/85 hover:bg-sky-900 border border-sky-400/50 text-sky-200 font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
+                title={isAr ? 'حالة مياه وري الأرض وتوقعات المطر' : 'Irrigation & soil moisture'}
+              >
+                <Droplets className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                <span className="text-[11px] font-bold">{isAr ? 'الري والمياه 💧' : 'Irrigation 💧'}</span>
+              </button>
 
-                {/* Divider */}
-                <div className="w-px h-4 bg-white/20 shrink-0 mx-0.5" />
+              {/* Button 3: Crop Health & Vigor */}
+              <button
+                type="button"
+                onClick={() => setFarmerModalOpen('health')}
+                className="h-7 px-2 sm:px-2.5 rounded-xl bg-teal-950/85 hover:bg-teal-900 border border-teal-400/50 text-teal-200 font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
+                title={isAr ? 'مؤشر اخضرار وصحة النباتات من القمر الصناعي' : 'Vegetation health from satellites'}
+              >
+                <Activity className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                <span className="text-[11px] font-bold">{isAr ? 'صحة الزرع 🌿' : 'Crop Health 🌿'}</span>
+                <span className="text-[9px] font-mono px-1 py-0.2 rounded-full bg-emerald-500/30 text-emerald-200 font-bold">
+                  {farmAverages.NDVI >= 0.4 ? '85%' : '60%'}
+                </span>
+              </button>
 
-                {/* Switch to Expert GIS Mode */}
-                <button
-                  type="button"
-                  onClick={() => setIsExpertMode(true)}
-                  className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-purple-950/85 hover:bg-purple-900 border border-purple-400/60 text-purple-200 font-bold flex items-center gap-1 sm:gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
-                  title={isAr ? 'الانتقال لأدوات نظم المعلومات الجغرافية والأقمار الصناعية للمتخصصين' : 'Switch to Expert GIS'}
-                >
-                  <Sliders className="w-3.5 h-3.5 text-purple-300 shrink-0" />
-                  <span className="text-[11px] sm:text-xs whitespace-nowrap">
-                    <span className="inline md:hidden">{isAr ? 'الخبراء' : 'Expert'}</span>
-                    <span className="hidden md:inline">{isAr ? '🔬 وضع الخبراء' : '🔬 Expert'}</span>
-                  </span>
-                </button>
+              {/* Divider */}
+              <div className="w-px h-4 bg-white/20 shrink-0 mx-0.5" />
 
-                {/* Reset Position Button */}
-                <button
-                  type="button"
-                  onClick={resetDockPos}
-                  className="p-1 sm:p-1.5 text-slate-400 hover:text-amber-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-                  title={isAr ? 'إعادة ضبط موضع الشريط' : 'Reset dock position'}
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
+              {/* Switch to Expert GIS Mode */}
+              <button
+                type="button"
+                onClick={() => setIsExpertMode(true)}
+                className="h-7 px-2 sm:px-2.5 rounded-xl bg-purple-950/85 hover:bg-purple-900 border border-purple-400/60 text-purple-200 font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0"
+                title={isAr ? 'الانتقال لأدوات نظم المعلومات الجغرافية والأقمار الصناعية للمتخصصين' : 'Switch to Expert GIS'}
+              >
+                <Sliders className="w-3.5 h-3.5 text-purple-300 shrink-0" />
+                <span className="text-[11px] font-bold">{isAr ? '🔬 وضع الخبراء' : '🔬 Expert'}</span>
+              </button>
 
-                {/* Collapse Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsDockCollapsed(true)}
-                  className="p-1 sm:p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-                  title={isAr ? 'تصغير الشريط' : 'Minimize bar'}
-                >
-                  <ChevronUp className="w-3.5 h-3.5" />
-                </button>
-              </>
-            )}
-          </div>
+              {/* Reset Position Button */}
+              <button
+                type="button"
+                onClick={resetDockPos}
+                className="p-1 text-slate-400 hover:text-amber-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                title={isAr ? 'إعادة ضبط موضع التابة' : 'Reset dock position'}
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            </div>
+          )
         ) : (
           /* EXPERT GIS BAR (FOR SPECIALISTS ONLY) */
           <div className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-2xl bg-slate-950/94 backdrop-blur-2xl border border-purple-500/40 shadow-[0_12px_44px_rgba(0,0,0,0.8)] text-xs text-white max-w-[calc(100vw-30px)] overflow-x-auto [scrollbar-width:none]">
@@ -3220,37 +3310,60 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
         </div>
       )}
 
-      {/* Right Edge Zoom Rail */}
-      <div className="absolute right-2.5 sm:right-3 top-16 z-30 flex flex-col items-end gap-2 pointer-events-none">
-        <div className="pointer-events-auto flex flex-col gap-1 bg-slate-950/88 backdrop-blur-md border border-white/15 rounded-2xl p-1 shadow-xl">
-          <button
-            type="button"
-            onClick={() => onZoomStep('in')}
-            title={isAr ? 'تقريب' : 'Zoom In'}
-            className="w-8 h-8 rounded-xl hover:bg-slate-800 text-slate-200 flex items-center justify-center cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onZoomStep('out')}
-            title={isAr ? 'تبعيد' : 'Zoom Out'}
-            className="w-8 h-8 rounded-xl hover:bg-slate-800 text-slate-200 flex items-center justify-center cursor-pointer"
-          >
-            <Minus className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onZoomStep('world')}
-            title={isAr ? 'عرض كوكب الأرض الكامل' : 'Reset Full Earth View'}
-            className="w-8 h-8 rounded-xl hover:bg-slate-800 text-emerald-400 flex items-center justify-center cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
+      {/* 3. DRAGGABLE ZOOM CONTROLS RAIL */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${zoomPos.x}px`,
+          top: `${zoomPos.y}px`,
+          zIndex: 35,
+          touchAction: 'none',
+        }}
+        onPointerDown={handleZoomPointerDown}
+        onPointerMove={handleZoomPointerMove}
+        onPointerUp={handleZoomPointerUp}
+        className={`pointer-events-auto flex flex-col items-center gap-1 p-1 rounded-2xl bg-slate-950/92 backdrop-blur-2xl border border-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.65)] ${
+          isZoomDragging ? 'ring-2 ring-emerald-400 cursor-grabbing shadow-2xl scale-[1.03]' : ''
+        } transition-all select-none`}
+      >
+        {/* Tactile Drag Handle */}
+        <div
+          data-drag-handle="true"
+          className="p-1 text-slate-400 hover:text-white cursor-grab active:cursor-grabbing rounded-lg hover:bg-white/10 flex items-center justify-center"
+          title={isAr ? 'اسحب أزرار التكبير والتصغير لأي مكان' : 'Drag zoom controls'}
+        >
+          <GripVertical className="w-3.5 h-3.5 text-emerald-400" />
         </div>
 
-        {/* Slim Vertical Color Scale Bar */}
-        {showGlobalFieldOverlay && effectiveMapId !== 'natural' && (
+        <button
+          type="button"
+          onClick={() => onZoomStep('in')}
+          title={isAr ? 'تقريب (+)' : 'Zoom In (+)'}
+          className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-xl bg-slate-900/80 hover:bg-emerald-600/50 border border-white/10 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onZoomStep('out')}
+          title={isAr ? 'تبعيد (-)' : 'Zoom Out (-)'}
+          className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-xl bg-slate-900/80 hover:bg-emerald-600/50 border border-white/10 text-slate-200 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+        >
+          <Minus className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onZoomStep('world')}
+          title={isAr ? 'عرض كوكب الأرض الكامل' : 'Reset Full Earth View'}
+          className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-xl bg-slate-900/80 hover:bg-emerald-600/50 border border-white/10 text-emerald-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+        >
+          <RotateCcw className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* Slim Vertical Color Scale Bar (Fixed on Right Edge) */}
+      {showGlobalFieldOverlay && effectiveMapId !== 'natural' && (
+        <div className="absolute right-2.5 sm:right-3 top-36 z-30 pointer-events-none">
           <div
             data-testid="right-vertical-color-scale"
             className="pointer-events-auto w-[46px] max-h-[calc(100dvh-260px)] overflow-y-auto rounded-xl bg-slate-950/90 border border-white/15 p-1 shadow-xl flex flex-col items-stretch gap-0.5 text-[9px] font-mono tabular-nums text-white select-none"
@@ -3277,8 +3390,8 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {topRightDrawers && (
         <div className="pointer-events-auto absolute top-16 right-3 z-40 max-w-[min(calc(100vw-20px),420px)] flex flex-col items-end gap-2">

@@ -2347,10 +2347,10 @@ function getShapedTextBillboardCanvas(options: {
   }
 
   const isZone = options.variant === 'zone';
-  const fontSizePx = isZone ? 14 : 11;
-  const lineHeightPx = isZone ? 20 : 15;
-  const padX = isZone ? 14 : 8;
-  const padY = isZone ? 7 : 4;
+  const fontSizePx = isZone ? 11 : 10;
+  const lineHeightPx = isZone ? 15 : 13;
+  const padX = isZone ? 8 : 6;
+  const padY = isZone ? 3.5 : 2.5;
   const fontSpec = isZone
     ? `700 ${fontSizePx}px "Cairo", "Tajawal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
     : `700 ${fontSizePx}px "Cairo", "IBM Plex Mono", system-ui, sans-serif`;
@@ -2385,16 +2385,16 @@ function getShapedTextBillboardCanvas(options: {
 
   if (isZone) {
     // Sleek, ultra-clean high-contrast glass pill badge for farm zones
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
     ctx.strokeStyle = options.accentColor || (options.isSelected ? '#10b981' : '#38bdf8');
-    ctx.lineWidth = options.isSelected ? 2.2 : 1.5;
+    ctx.lineWidth = options.isSelected ? 1.8 : 1.2;
     ctx.beginPath();
     if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(1.5, 1.5, widthCss - 3, heightCss - 3, 10);
+      ctx.roundRect(1, 1, widthCss - 2, heightCss - 2, 6);
     } else {
-      ctx.rect(1.5, 1.5, widthCss - 3, heightCss - 3);
+      ctx.rect(1, 1, widthCss - 2, heightCss - 2);
     }
     ctx.fill();
     ctx.stroke();
@@ -3050,6 +3050,25 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         } else if (entityId.startsWith('study-zone-')) {
           const zid = entityId.replace(/^study-zone-(?:label-)?/, '');
           callbacksRef.current.onSelectZone?.(zid);
+          // Auto-fly camera smoothly to the clicked farm
+          const target = stateRef.current.zones.find((z) => z.id === zid);
+          if (target && target.centroid) {
+            const sqM = target.area?.squareMeters || 40000;
+            const targetAlt = Math.max(1200, Math.min(16000, Math.sqrt(sqM) * 6.0));
+            viewer.camera.flyTo({
+              destination: Cesium.Cartesian3.fromDegrees(
+                target.centroid.lng,
+                target.centroid.lat,
+                targetAlt
+              ),
+              orientation: {
+                heading: viewer.camera.heading,
+                pitch: Cesium.Math.toRadians(-52),
+                roll: 0,
+              },
+              duration: 1.5,
+            });
+          }
         }
       }
 
@@ -3820,19 +3839,12 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         },
       });
 
-      // Spatial collision check and vertical stacking for zone labels (e.g. "زونة زراعية 2" & "أرض مجدي 2")
-      // The active/selected zone is always anchored at primary yOffset = -8px
-      // All other zones stack neatly at -46px, -84px, -122px... with 38px spacing (zero overlap)
-      let yOffset = -8;
-      if (isSelected) {
-        yOffset = -8;
-      } else {
-        const stackIndex = placedZoneCentroids.filter(
-          (c) => Math.hypot(c.lat - zone.centroid.lat, c.lng - zone.centroid.lng) < 2.5
-        ).length;
-        yOffset = -8 - ((stackIndex + 1) * 38);
-      }
+      // Anchored precisely at the exact farm centroid location
+      const closeCollisions = placedZoneCentroids.filter(
+        (c) => Math.hypot(c.lat - zone.centroid.lat, c.lng - zone.centroid.lng) < 0.018
+      ).length;
       placedZoneCentroids.push({ lat: zone.centroid.lat, lng: zone.centroid.lng });
+      const yOffset = isSelected ? -5 : -5 - (closeCollisions * 18);
 
       const zoneBadge = getShapedTextBillboardCanvas({
         lines: [isAr ? zone.nameAr : zone.nameEn],
@@ -4007,7 +4019,34 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
     viewerReady,
   ]);
 
-  // 9B. White Country Borders Overlay (Uses high-res Esri Reference World_Boundaries_and_Places without coarse jagged polylines)
+  // 9B. Auto-fly camera smoothly to selected farm whenever activeZoneId changes
+  const lastAutoFlownZoneRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeZoneId || activeZoneId === lastAutoFlownZoneRef.current) return;
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed() || !viewerReady) return;
+    const target = zones.find((z) => z.id === activeZoneId);
+    if (target && target.centroid) {
+      lastAutoFlownZoneRef.current = activeZoneId;
+      const sqMeters = target.area?.squareMeters || 40000;
+      const targetAlt = Math.max(1200, Math.min(16000, Math.sqrt(sqMeters) * 6.0));
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          target.centroid.lng,
+          target.centroid.lat,
+          targetAlt
+        ),
+        orientation: {
+          heading: viewer.camera.heading,
+          pitch: Cesium.Math.toRadians(-52),
+          roll: 0,
+        },
+        duration: 1.6,
+      });
+    }
+  }, [activeZoneId, zones, viewerReady]);
+
+  // 9C. White Country Borders Overlay (Uses high-res Esri Reference World_Boundaries_and_Places without coarse jagged polylines)
   useEffect(() => {
     const bordersDs = whiteBordersDataSourceRef.current;
     const viewer = viewerRef.current;

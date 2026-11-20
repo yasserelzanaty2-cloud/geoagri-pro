@@ -287,8 +287,8 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
           <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 whitespace-nowrap shrink-0 px-1">
             <Layers className="w-3.5 h-3.5" />
             {isAr
-              ? `مصنف الزونات المضافة (${zones.length}):`
-              : `Study Zones (${zones.length}):`}
+              ? `مزارعي المسجلة (${zones.length}):`
+              : `My Farms (${zones.length}):`}
           </span>
 
           {zones.length === 0 ? (
@@ -298,11 +298,11 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
             >
               {isDrawingNewZone || drawingMode !== 'none'
                 ? isAr
-                  ? 'اسحب مستطيلاً على الخريطة أو انقر النقاط لتحديد الزونة الأولى...'
-                  : 'Drag a rectangle or click points on map to define your first zone...'
+                  ? 'اسحب مستطيلاً على الخريطة أو انقر النقاط لتحديد مزرعتك الأولى...'
+                  : 'Drag a rectangle or click points on map to define your first farm...'
                 : isAr
-                ? 'لا توجد زونات مضافة بعد — اضغط «+ إضافة زونة جديدة» وحدد منطقة الدراسة على الخريطة'
-                : 'No zones defined yet — click "+ Add New Zone" to draw your study area on map'}
+                ? 'لا توجد مزارع مسجلة بعد — اضغط «+ إضافة مزرعة» وحدد حدود أرضك على الخريطة'
+                : 'No farms defined yet — click "+ Add Farm" to draw your field on map'}
             </span>
           ) : (
             zones.map((z) => {
@@ -424,7 +424,7 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
             className="min-h-[30px] px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-600 hover:bg-sky-500 text-white flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{isAr ? '+ إضافة زونة (بمستطيل)' : '+ Add Zone (Rectangle)'}</span>
+            <span>{isAr ? '+ إضافة مزرعة (بمستطيل)' : '+ Add Farm (Rectangle)'}</span>
           </button>
 
           <button
@@ -434,7 +434,7 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
             className="min-h-[30px] px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
           >
             <MapPin className="w-3.5 h-3.5" />
-            <span>{isAr ? '+ إضافة زونة (بنقاط حرة)' : '+ Add Zone (Polygon)'}</span>
+            <span>{isAr ? '+ إضافة مزرعة (بنقاط حرة)' : '+ Add Farm (Polygon)'}</span>
           </button>
 
           {zones.length >= 2 && (
@@ -451,8 +451,8 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
               <Scale className="w-3.5 h-3.5" />
               <span>
                 {isAr
-                  ? `مقارنة الزونات (${comparedZones.length >= 2 ? comparedZones.length : zones.length})`
-                  : `Compare Zones (${comparedZones.length >= 2 ? comparedZones.length : zones.length})`}
+                  ? `مقارنة مزارعي (${comparedZones.length >= 2 ? comparedZones.length : zones.length})`
+                  : `Compare Farms (${comparedZones.length >= 2 ? comparedZones.length : zones.length})`}
               </span>
             </button>
           )}
@@ -465,7 +465,7 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
               className="min-h-[30px] px-2 py-1 rounded-lg text-[11px] font-bold bg-rose-600/90 hover:bg-rose-500 text-white flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <Trash2 className="w-3 h-3" />
-              <span>{isAr ? 'مسح كل الزونات' : 'Clear All'}</span>
+              <span>{isAr ? 'مسح كل المزارع' : 'Clear All'}</span>
             </button>
           )}
         </div>
@@ -481,12 +481,12 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <span className="text-[11px] font-bold text-emerald-400">
-                  {isAr ? 'تم تحديد إحداثيات الزونة بنجاح' : 'Zone Coordinates Captured'}
+                  {isAr ? 'تم تحديد حدود المزرعة بنجاح' : 'Farm Boundary Captured'}
                 </span>
                 <h3 className="text-base font-bold text-white mt-0.5">
                   {isAr
-                    ? 'تسمية الزونة وإعداد ملف التربة والري'
-                    : 'Name Zone & Configure Soil Profile'}
+                    ? 'تسمية المزرعة وإعداد ملف التربة والري'
+                    : 'Name Farm & Configure Soil Profile'}
                 </h3>
               </div>
               {draftArea && (
@@ -500,21 +500,21 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  {isAr ? 'اسم الزونة المخصص:' : 'Custom Zone Name:'}
+                  {isAr ? 'اسم المزرعة المخصص:' : 'Custom Farm Name:'}
                 </label>
                 <input
                   type="text"
                   data-testid="new-zone-name-input"
                   value={draftName}
                   onChange={(e) => setDraftName(e.target.value)}
-                  placeholder={isAr ? 'مثال: حقل القمح الشمالي - زونة 1' : 'e.g. North Wheat Plot 1'}
+                  placeholder={isAr ? 'مثال: حقل القمح الشمالي - مزرعتي 1' : 'e.g. North Wheat Plot 1'}
                   className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-400 rounded-xl px-3 py-2 text-sm text-white outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  {isAr ? 'تصنيف الزونة:' : 'Zone Classification:'}
+                  {isAr ? 'تصنيف المزرعة:' : 'Farm Classification:'}
                 </label>
                 <select
                   data-testid="new-zone-category-select"
@@ -773,8 +773,8 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
                       ? 'حفظ ومزامنة في السحابة'
                       : 'Save & Sync to Cloud'
                     : isAr
-                    ? 'حفظ الزونة وبدء التحليل العلمي'
-                    : 'Save Zone & Analyze'}
+                    ? 'حفظ المزرعة وبدء التحليل العلمي'
+                    : 'Save Farm & Analyze'}
                 </span>
               </button>
             </div>
@@ -792,7 +792,7 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
             <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
               <div>
                 <span className="text-[11px] font-bold text-emerald-400">
-                  {isAr ? 'ملف التربة والري المخصص للزونة' : 'Zone Soil & Irrigation Profile'}
+                  {isAr ? 'ملف التربة والري المخصص للمزرعة' : 'Farm Soil & Irrigation Profile'}
                 </span>
                 <h4 className="text-sm font-bold text-white mt-0.5">
                   {isAr ? soilEditTargetZone.nameAr : soilEditTargetZone.nameEn}
@@ -999,7 +999,7 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-4 text-slate-100 space-y-3 shadow-2xl">
             <h4 className="text-sm font-bold text-white">
-              {isAr ? 'تعديل اسم وتصنيف الزونة' : 'Rename & Classify Zone'}
+              {isAr ? 'تعديل اسم وتصنيف المزرعة' : 'Rename & Classify Farm'}
             </h4>
             <input
               type="text"
@@ -1070,8 +1070,8 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
               <Scale className="w-4 h-4 text-amber-400" />
               <h3 className="text-sm font-bold text-white">
                 {isAr
-                  ? 'لوحة المقارنة العلمية المباشرة بين الزونات المحددة'
-                  : 'Side-by-Side Multi-Zone Scientific Comparison'}
+                  ? 'لوحة المقارنة المباشرة بين مزارعي المحددة'
+                  : 'Side-by-Side Multi-Farm Comparison'}
               </h3>
             </div>
             <button
@@ -1087,7 +1087,7 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-950/90 text-slate-300 border-b border-slate-800">
-                  <th className="p-2 text-start">{isAr ? 'اسم الزونة' : 'Zone Name'}</th>
+                  <th className="p-2 text-start">{isAr ? 'اسم المزرعة' : 'Farm Name'}</th>
                   <th className="p-2 text-start">{isAr ? 'التربة والري' : 'Soil & Irrig'}</th>
                   <th className="p-2 text-start">{isAr ? 'المساحة' : 'Area'}</th>
                   <th className="p-2 text-start">NDVI</th>

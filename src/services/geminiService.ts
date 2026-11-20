@@ -123,10 +123,14 @@ export async function discoverAndVerifyGeminiKey(
     'gemini-2.0-flash',
     'gemini-1.5-flash',
     'gemini-1.5-flash-latest',
+    'gemini-1.5-flash-8b',
+    'gemini-2.0-flash-lite',
     'gemini-2.5-pro',
     'gemini-1.5-pro',
     'gemini-1.5-pro-latest',
     'gemini-2.0-flash-exp',
+    'gemini-1.5-flash-001',
+    'gemini-1.5-pro-001',
   ];
 
   let lastError = '';
@@ -137,7 +141,7 @@ export async function discoverAndVerifyGeminiKey(
       const listUrl = `https://generativelanguage.googleapis.com/${version}/models?key=${encodeURIComponent(apiKey)}`;
       const listRes = await fetch(listUrl, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(8000),
       });
 
