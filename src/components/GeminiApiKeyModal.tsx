@@ -86,11 +86,16 @@ export const GeminiApiKeyModal: React.FC<GeminiApiKeyModalProps> = ({
       );
     } else {
       setTestStatus('error');
-      const err = result.error || '';
+      let err = result.error || '';
+      if (!err || err.includes('not found') || err.includes('not supported')) {
+        err = isAr
+          ? 'تعذر الوصول للنماذج بهذا المفتاح. تأكد من تفعيل Gemini API في Google AI Studio (aistudio.google.com/apikey).'
+          : 'Unable to access models with this key. Ensure Gemini API is enabled in Google AI Studio.';
+      }
       setStatusMessage(
         isAr
-          ? `فشل الاتصال: ${err}. تأكد من إنشاء المفتاح من Google AI Studio (aistudio.google.com/apikey).`
-          : `Connection failed: ${err}. Ensure your key is from Google AI Studio (aistudio.google.com/apikey).`
+          ? `فشل الاتصال: ${err}`
+          : `Connection failed: ${err}`
       );
     }
   };

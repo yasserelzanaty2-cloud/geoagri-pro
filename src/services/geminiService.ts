@@ -122,8 +122,10 @@ export async function discoverAndVerifyGeminiKey(
     'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
     'gemini-2.5-pro',
     'gemini-1.5-pro',
+    'gemini-1.5-pro-latest',
     'gemini-2.0-flash-exp',
   ];
 
@@ -167,7 +169,7 @@ export async function discoverAndVerifyGeminiKey(
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+                  contents: [{ parts: [{ text: 'ping' }] }],
                 }),
                 signal: AbortSignal.timeout(7000),
               });
@@ -224,7 +226,7 @@ export async function discoverAndVerifyGeminiKey(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: 'ping' }] }],
+            contents: [{ parts: [{ text: 'ping' }] }],
           }),
           signal: AbortSignal.timeout(6000),
         });
@@ -244,7 +246,7 @@ export async function discoverAndVerifyGeminiKey(
         if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID')) {
           return {
             ok: false,
-            error: 'مفتاح API غير صالح. يرجى التأكد من نسخه بدقة من Google AI Studio.',
+            error: 'مفتاح API غير صالح. يرجى التأكد من نسخه بدقة من Google AI Studio (aistudio.google.com/apikey).',
           };
         }
         if (
@@ -255,10 +257,9 @@ export async function discoverAndVerifyGeminiKey(
         ) {
           return {
             ok: false,
-            error: 'خدمة Generative Language API غير مفعلة لهذا المفتاح في مشروع Google Cloud.',
+            error: 'خدمة Generative Language API غير مفعلة لهذا المفتاح في مشروع Google Cloud. يرجى تفعيلها أو إنشاء مفتاح جديد من Google AI Studio.',
           };
         }
-        // Only set lastError if not a simple model not found error
         if (!msg.includes('not found') && (!lastError || lastError.startsWith('HTTP'))) {
           lastError = msg;
         }
@@ -268,11 +269,14 @@ export async function discoverAndVerifyGeminiKey(
     }
   }
 
+  let finalError = lastError;
+  if (!finalError || finalError.includes('not found') || finalError.includes('not supported for generateContent')) {
+    finalError = 'تعذر العثور على نموذج محادثة متوافق مع هذا المفتاح. تأكد من إنشاء المفتاح من Google AI Studio (aistudio.google.com/apikey).';
+  }
+
   return {
     ok: false,
-    error:
-      lastError ||
-      'تعذر العثور على نماذج تدعم المحادثة لهذا المفتاح. تأكد من تفعيل Gemini API في Google AI Studio.',
+    error: finalError,
   };
 }
 

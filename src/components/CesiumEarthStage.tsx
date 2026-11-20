@@ -2800,7 +2800,7 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
       shadows: false,
       shouldAnimate: false,
       requestRenderMode: true,
-      maximumRenderTimeChange: Infinity,
+      maximumRenderTimeChange: 0.25,
       msaaSamples: isSoftwareGl ? 1 : 2,
       useBrowserRecommendedResolution: true,
     });
@@ -2901,7 +2901,7 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         });
     }
 
-    // WebGL context loss safety handlers
+    // WebGL context loss & render error safety handlers
     const canvas = viewer.scene.canvas;
     const handleContextLost = (e: Event) => {
       e.preventDefault();
@@ -2910,8 +2910,17 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
     const handleContextRestored = () => {
       setContextLost(false);
     };
+    const handleRenderError = (_scene: Cesium.Scene, error: unknown) => {
+      console.warn('[CesiumEarthStage] Non-fatal render error caught:', error);
+      requestAnimationFrame(() => {
+        if (!viewer.isDestroyed()) {
+          viewer.scene.requestRender();
+        }
+      });
+    };
     canvas.addEventListener('webglcontextlost', handleContextLost);
     canvas.addEventListener('webglcontextrestored', handleContextRestored);
+    viewer.scene.renderError.addEventListener(handleRenderError);
 
     // Track camera pan & zoom interactions with explicit trailing debounce (180ms)
     const debouncedCameraStatusChange = debounce(() => {
@@ -3172,6 +3181,9 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
       canvas.removeEventListener('webglcontextlost', handleContextLost);
       canvas.removeEventListener('webglcontextrestored', handleContextRestored);
       if (!viewer.isDestroyed()) {
+        try {
+          viewer.scene.renderError.removeEventListener(handleRenderError);
+        } catch {}
         viewer.scene.globe.tileLoadProgressEvent.removeEventListener(handleTileProgress);
         viewer.camera.changed.removeEventListener(handleCameraChanged);
         viewer.destroy();
@@ -3808,10 +3820,18 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         },
       });
 
-      // Spatial collision check for close or identical centroids (~0.018 deg)
-      const nearbyCollisions = placedZoneCentroids.filter(
-        (c) => Math.hypot(c.lat - zone.centroid.lat, c.lng - zone.centroid.lng) < 0.018
-      ).length;
+      // Spatial collision check and vertical stacking for zone labels (e.g. "زونة زراعية 2" & "أرض مجدي 2")
+      // The active/selected zone is always anchored at primary yOffset = -8px
+      // All other zones stack neatly at -46px, -84px, -122px... with 38px spacing (zero overlap)
+      let yOffset = -8;
+      if (isSelected) {
+        yOffset = -8;
+      } else {
+        const stackIndex = placedZoneCentroids.filter(
+          (c) => Math.hypot(c.lat - zone.centroid.lat, c.lng - zone.centroid.lng) < 2.5
+        ).length;
+        yOffset = -8 - ((stackIndex + 1) * 38);
+      }
       placedZoneCentroids.push({ lat: zone.centroid.lat, lng: zone.centroid.lng });
 
       const zoneBadge = getShapedTextBillboardCanvas({
@@ -3822,9 +3842,6 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         isSelected,
       });
 
-      // Stagger vertical pixel offset so overlapping labels stack neatly above each other
-      const yOffset = isSelected ? -10 : -10 - (nearbyCollisions * 36);
-
       zoneDs.entities.add({
         id: `study-zone-label-${zone.id}`,
         position: Cesium.Cartesian3.fromDegrees(zone.centroid.lng, zone.centroid.lat),
@@ -3834,7 +3851,6 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
           height: zoneBadge.heightCss,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, yOffset),
-          eyeOffset: new Cesium.Cartesian3(0, 0, isSelected ? -150 : -(nearbyCollisions * 15)),
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
