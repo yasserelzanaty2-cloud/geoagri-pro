@@ -1446,7 +1446,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
     menuOpen || satellitePickerOpen ? (
       <div
         data-testid="floating-vertical-dropdown"
-        className="w-[360px] sm:w-[410px] max-h-[min(66dvh,550px)] overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full bg-slate-950/96 border border-white/15 rounded-2xl shadow-2xl p-3 text-slate-100 flex flex-col gap-2.5 z-50 pointer-events-auto"
+        className="w-[360px] sm:w-[450px] md:w-[490px] max-w-[calc(100vw-20px)] max-h-[min(72dvh,580px)] overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full bg-slate-950/96 border border-white/15 rounded-2xl shadow-2xl p-3 text-slate-100 flex flex-col gap-2.5 z-50 pointer-events-auto"
       >
         {/* Dropdown Header */}
         <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/10">
@@ -1492,7 +1492,7 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
                 en: 'Satellites',
                 testId: 'satellite-mission-picker-btn',
               },
-              { id: 'zones', ar: 'الزونات', en: 'Zones', testId: 'dropdown-section-zones' },
+              { id: 'zones', ar: 'المزارع', en: 'Farms', testId: 'dropdown-section-zones' },
               { id: 'view', ar: 'العرض 3D', en: '3D View', testId: 'dropdown-section-view' },
             ] as const
           ).map((sec) => (
@@ -2347,54 +2347,20 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
               {/* SECTION 2: ZONES & DRAWING */}
               {activeSection === 'zones' && (
                 <div className="space-y-2.5">
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      data-testid="draw-mode-freehand-btn"
-                      onClick={() =>
-                        onStartDrawingMode(drawingMode === 'freehand' ? 'none' : 'freehand')
-                      }
-                      className={`py-2 px-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 border cursor-pointer ${
-                        drawingMode === 'freehand'
-                          ? 'bg-amber-600 border-amber-400 text-white'
-                          : 'bg-slate-900 border-white/10 text-slate-200 hover:bg-slate-800'
-                      }`}
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'نقر حر 3D' : 'Freehand'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      data-testid="draw-mode-rectangle-btn"
-                      onClick={() =>
-                        onStartDrawingMode(drawingMode === 'rectangle' ? 'none' : 'rectangle')
-                      }
-                      className={`py-2 px-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 border cursor-pointer ${
-                        drawingMode === 'rectangle'
-                          ? 'bg-sky-600 border-sky-400 text-white'
-                          : 'bg-slate-900 border-white/10 text-slate-200 hover:bg-slate-800'
-                      }`}
-                    >
-                      <Square className="w-3.5 h-3.5" />
-                      <span>{isAr ? 'مزرعة بمستطيل' : 'Box Farm'}</span>
-                    </button>
-                  </div>
-
                   {vertices.length >= 3 && (
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-2 gap-1.5 p-2 rounded-xl bg-slate-900/90 border border-emerald-500/30">
                       <button
                         type="button"
                         onClick={onSaveCurrentPolygonAsDraft}
-                        className="py-1.5 px-2.5 rounded-xl text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1 cursor-pointer"
+                        className="py-1.5 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1 cursor-pointer shadow-sm"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        <span>{isAr ? 'حفظ المزرعة' : 'Save Farm'}</span>
+                        <span>{isAr ? 'حفظ المزرعة المرسومة' : 'Save Drawn Farm'}</span>
                       </button>
                       <button
                         type="button"
                         onClick={onClearSelection}
-                        className="py-1.5 px-2.5 rounded-xl text-[11px] font-bold bg-rose-600/85 hover:bg-rose-600 text-white flex items-center justify-center gap-1 cursor-pointer"
+                        className="py-1.5 px-2.5 rounded-lg text-[11px] font-bold bg-rose-600/85 hover:bg-rose-600 text-white flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Eraser className="w-3.5 h-3.5" />
                         <span>{isAr ? 'مسح الرسم' : 'Clear'}</span>

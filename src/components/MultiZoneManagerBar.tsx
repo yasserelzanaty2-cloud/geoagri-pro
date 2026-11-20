@@ -284,205 +284,226 @@ export const MultiZoneManagerBar: React.FC<MultiZoneManagerBarProps> = ({
       {/* Top Compact Zone Classifier & Selector Bar */}
       <div
         data-testid="multi-zone-classifier-bar"
-        className="bg-slate-900/92 backdrop-blur-md border border-slate-700/80 rounded-xl px-2.5 py-1.5 shadow-lg flex flex-wrap items-center justify-between gap-2 text-slate-100"
+        className="w-full bg-slate-900/92 backdrop-blur-md border border-slate-700/80 rounded-xl p-2.5 shadow-lg flex flex-col gap-2 text-slate-100 overflow-hidden"
       >
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
-          <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1 whitespace-nowrap shrink-0 px-1">
-            <Layers className="w-3.5 h-3.5" />
-            {isAr
-              ? `مزارعي المسجلة (${zones.length}):`
-              : `My Farms (${zones.length}):`}
-          </span>
+        <div className="flex flex-col gap-1.5 w-full">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-emerald-300" />
+              <span>{isAr ? `مزارعي المسجلة (${zones.length})` : `My Farms (${zones.length})`}</span>
+            </span>
+
+            {zones.length > 0 && (
+              <span className="text-[10px] text-slate-400 font-mono">
+                {zones.length} {isAr ? 'مزرعة' : 'farms'}
+              </span>
+            )}
+          </div>
 
           {zones.length === 0 ? (
-            <span
+            <div
               data-testid="zero-zones-status-badge"
-              className="text-[11px] text-amber-300 bg-amber-950/60 border border-amber-500/40 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0"
+              className="w-full text-[11px] leading-relaxed text-amber-200 bg-amber-950/50 border border-amber-500/30 rounded-xl p-2 text-center sm:text-start"
             >
               {isDrawingNewZone || drawingMode !== 'none'
                 ? isAr
-                  ? 'اسحب مستطيلاً على الخريطة أو انقر النقاط لتحديد مزرعتك الأولى...'
-                  : 'Drag a rectangle or click points on map to define your first farm...'
+                  ? '✍️ حدد أركان مزرعتك على الخريطة أو اسحب مستطيلاً، ثم اضغط حفظ المزرعة.'
+                  : '✍️ Click points or drag a box on map to outline your farm, then save.'
                 : isAr
-                ? 'لا توجد مزارع مسجلة بعد — اضغط «+ إضافة مزرعة» وحدد حدود أرضك على الخريطة'
-                : 'No farms defined yet — click "+ Add Farm" to draw your field on map'}
-            </span>
+                ? '🌾 لا توجد مزارع مسجلة بعد — اختر طريقة التحديد بالأسفل (رسم أو إحداثيات أو GPS ميداني).'
+                : '🌾 No farms added yet — choose an option below to define your boundaries.'}
+            </div>
           ) : (
-            zones.map((z) => {
-              const isActive = z.id === activeZoneId;
-              const isCompared = comparedZoneIds.includes(z.id);
-              return (
-                <div
-                  key={z.id}
-                  data-testid={`zone-chip-${z.id}`}
-                  className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] border transition-all whitespace-nowrap shrink-0 ${
-                    isActive
-                      ? 'bg-emerald-600/95 border-emerald-300 text-white font-bold shadow-sm'
-                      : 'bg-slate-800/90 border-slate-700 text-slate-200 hover:border-slate-500'
-                  }`}
-                >
-                  {/* Compare Checkbox */}
-                  <button
-                    type="button"
-                    data-testid={`zone-compare-toggle-${z.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleCompareZone(z.id);
-                    }}
-                    title={isAr ? 'تحديد هذه الزونة للمقارنة' : 'Select zone for comparison'}
-                    className="p-0.5 rounded hover:bg-black/20 text-emerald-200 cursor-pointer"
+            <div className="flex flex-wrap gap-1.5 w-full max-h-36 overflow-y-auto py-0.5">
+              {zones.map((z) => {
+                const isActive = z.id === activeZoneId;
+                const isCompared = comparedZoneIds.includes(z.id);
+                return (
+                  <div
+                    key={z.id}
+                    data-testid={`zone-chip-${z.id}`}
+                    className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] border transition-all ${
+                      isActive
+                        ? 'bg-emerald-600/95 border-emerald-300 text-white font-bold shadow-sm'
+                        : 'bg-slate-800/90 border-slate-700 text-slate-200 hover:border-slate-500'
+                    }`}
                   >
-                    {isCompared ? (
-                      <CheckSquare className="w-3.5 h-3.5 text-amber-300" />
-                    ) : (
-                      <Square className="w-3.5 h-3.5 opacity-70" />
-                    )}
-                  </button>
-
-                  {/* Select Active Zone Button */}
-                  <button
-                    type="button"
-                    data-testid={`zone-select-btn-${z.id}`}
-                    onClick={() => onSelectActiveZone(z.id)}
-                    className="flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/60"
-                      style={{ backgroundColor: z.color }}
-                    />
-                    <span>{isAr ? z.nameAr : z.nameEn}</span>
-                    <span className="text-[10px] opacity-80 font-mono tabular-nums">
-                      ({z.area.totalFeddansDecimal.toFixed(1)} {isAr ? 'فدان' : 'Fed'} · NDVI{' '}
-                      {z.farmAverages.NDVI})
-                    </span>
-                  </button>
-
-                  {/* Edit Zone Soil Profile Button */}
-                  {onUpdateZoneSoil && (
+                    {/* Compare Checkbox */}
                     <button
                       type="button"
-                      data-testid={`zone-soil-edit-btn-${z.id}`}
+                      data-testid={`zone-compare-toggle-${z.id}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        openSoilEditorForZone(z);
+                        onToggleCompareZone(z.id);
                       }}
-                      title={
-                        isAr
-                          ? 'تحرير ملف التربة والري لهذه الزونة (EC, pH, القوام، الري)'
-                          : 'Edit zone soil profile (Texture, EC, pH, Irrigation)'
-                      }
-                      className="p-0.5 rounded hover:bg-black/25 text-amber-200 cursor-pointer"
+                      title={isAr ? 'تحديد هذه المزرعة للمقارنة' : 'Select farm for comparison'}
+                      className="p-0.5 rounded hover:bg-black/20 text-emerald-200 cursor-pointer"
                     >
-                      <Sliders className="w-3 h-3" />
+                      {isCompared ? (
+                        <CheckSquare className="w-3.5 h-3.5 text-amber-300" />
+                      ) : (
+                        <Square className="w-3.5 h-3.5 opacity-70" />
+                      )}
                     </button>
-                  )}
 
-                  {/* Edit Name Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingZoneId(z.id);
-                      setEditNameValue(isAr ? z.nameAr : z.nameEn);
-                      const isPresetCat = ZONE_CATEGORIES.some((c) => c.ar === z.categoryAr);
-                      if (isPresetCat) {
-                        setEditCatValue(z.categoryAr);
-                        setEditCustomCategory('');
-                      } else {
-                        setEditCatValue('__custom__');
-                        setEditCustomCategory(z.categoryAr);
-                      }
-                    }}
-                    title={isAr ? 'تعديل اسم وتصنيف الزونة' : 'Rename zone'}
-                    className="p-0.5 rounded hover:bg-black/25 text-slate-200 cursor-pointer"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                  </button>
+                    {/* Select Active Zone Button */}
+                    <button
+                      type="button"
+                      data-testid={`zone-select-btn-${z.id}`}
+                      onClick={() => onSelectActiveZone(z.id)}
+                      className="flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/60"
+                        style={{ backgroundColor: z.color }}
+                      />
+                      <span className="font-semibold">{isAr ? z.nameAr : z.nameEn}</span>
+                      <span className="text-[10px] opacity-80 font-mono tabular-nums">
+                        ({z.area.totalFeddansDecimal.toFixed(1)} {isAr ? 'فدان' : 'Fed'})
+                      </span>
+                    </button>
 
-                  {/* Delete Single Zone Button */}
-                  <button
-                    type="button"
-                    data-testid={`zone-delete-btn-${z.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteZone(z.id);
-                    }}
-                    title={isAr ? 'حذف هذه الزونة' : 'Delete this zone'}
-                    className="p-0.5 rounded hover:bg-rose-600/80 text-rose-200 cursor-pointer"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              );
-            })
+                    {/* Edit Zone Soil Profile Button */}
+                    {onUpdateZoneSoil && (
+                      <button
+                        type="button"
+                        data-testid={`zone-soil-edit-btn-${z.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openSoilEditorForZone(z);
+                        }}
+                        title={
+                          isAr
+                            ? 'تحرير ملف التربة والري لهذه المزرعة'
+                            : 'Edit farm soil profile'
+                        }
+                        className="p-0.5 rounded hover:bg-black/25 text-amber-200 cursor-pointer"
+                      >
+                        <Sliders className="w-3 h-3" />
+                      </button>
+                    )}
+
+                    {/* Edit Name Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingZoneId(z.id);
+                        setEditNameValue(isAr ? z.nameAr : z.nameEn);
+                        const isPresetCat = ZONE_CATEGORIES.some((c) => c.ar === z.categoryAr);
+                        if (isPresetCat) {
+                          setEditCatValue(z.categoryAr);
+                          setEditCustomCategory('');
+                        } else {
+                          setEditCatValue('__custom__');
+                          setEditCustomCategory(z.categoryAr);
+                        }
+                      }}
+                      title={isAr ? 'تعديل اسم وتصنيف المزرعة' : 'Rename farm'}
+                      className="p-0.5 rounded hover:bg-black/25 text-slate-200 cursor-pointer"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+
+                    {/* Delete Single Zone Button */}
+                    <button
+                      type="button"
+                      data-testid={`zone-delete-btn-${z.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteZone(z.id);
+                      }}
+                      title={isAr ? 'حذف هذه المزرعة' : 'Delete this farm'}
+                      className="p-0.5 rounded hover:bg-rose-600/80 text-rose-200 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
-        {/* Action Buttons: Add New Zone, Compare Selected Zones, Clear All */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            data-testid="add-new-zone-rect-btn"
-            onClick={() => onStartDrawingNewZone('rectangle')}
-            className="min-h-[30px] px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-600 hover:bg-sky-500 text-white flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{isAr ? '+ إضافة مزرعة (بمستطيل)' : '+ Add Farm (Rectangle)'}</span>
-          </button>
+        {/* Action Buttons: Clean 2-column + full-width layout with ZERO horizontal scrolling */}
+        <div className="flex flex-col gap-1.5 w-full pt-1.5 border-t border-white/10">
+          <div className="grid grid-cols-2 gap-1.5 w-full">
+            <button
+              type="button"
+              data-testid="add-new-zone-rect-btn"
+              onClick={() => onStartDrawingNewZone('rectangle')}
+              className={`min-h-[32px] px-2 py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                drawingMode === 'rectangle'
+                  ? 'bg-sky-500 border-sky-300 text-white shadow-md'
+                  : 'bg-sky-600/25 hover:bg-sky-600/40 border-sky-500/40 text-sky-200'
+              }`}
+            >
+              <Square className="w-3.5 h-3.5 shrink-0" />
+              <span>{isAr ? '+ مزرعة بمستطيل' : '+ Box Farm'}</span>
+            </button>
 
-          <button
-            type="button"
-            data-testid="add-new-zone-poly-btn"
-            onClick={() => onStartDrawingNewZone('polygon')}
-            className="min-h-[30px] px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer shadow-sm"
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>{isAr ? '+ إضافة مزرعة (بنقاط حرة)' : '+ Add Farm (Polygon)'}</span>
-          </button>
+            <button
+              type="button"
+              data-testid="add-new-zone-poly-btn"
+              onClick={() => onStartDrawingNewZone('polygon')}
+              className={`min-h-[32px] px-2 py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                drawingMode === 'polygon'
+                  ? 'bg-emerald-500 border-emerald-300 text-white shadow-md'
+                  : 'bg-emerald-600/25 hover:bg-emerald-600/40 border-emerald-500/40 text-emerald-200'
+              }`}
+            >
+              <Edit3 className="w-3.5 h-3.5 shrink-0" />
+              <span>{isAr ? '+ رسم بنقاط حرة' : '+ Polygon Farm'}</span>
+            </button>
+          </div>
 
           {onOpenBoundaryGpsModal && (
             <button
               type="button"
               data-testid="add-new-zone-gps-coords-btn"
               onClick={onOpenBoundaryGpsModal}
-              className="min-h-[30px] px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-600 hover:bg-amber-500 text-white flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer shadow-sm transition-all"
+              className="w-full min-h-[34px] px-3 py-1.5 rounded-xl text-[11px] font-bold bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-[0.98]"
               title={isAr ? 'تحديد حدود المزرعة عبر إحداثيات GPS ميدانياً في الحقل أو كتابة الأرقام' : 'Define farm boundaries using field GPS or manual coordinates'}
             >
-              <Compass className="w-3.5 h-3.5 text-amber-200" />
-              <span>{isAr ? '📡 تحديد الحدود (GPS الحقل / إحداثيات)' : '📡 GPS Field / Coordinates'}</span>
+              <Compass className="w-4 h-4 text-amber-200 shrink-0" />
+              <span>{isAr ? '📡 تحديد الحدود (GPS الحقل / إدخال إحداثيات)' : '📡 Field GPS / Coordinates'}</span>
             </button>
           )}
 
-          {zones.length >= 2 && (
-            <button
-              type="button"
-              data-testid="open-zone-comparison-btn"
-              onClick={() => setShowCompareDrawer(!showCompareDrawer)}
-              className={`min-h-[30px] px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer border ${
-                showCompareDrawer || comparedZones.length >= 2
-                  ? 'bg-amber-500 text-slate-950 border-amber-300'
-                  : 'bg-slate-800 text-amber-300 border-amber-500/40 hover:bg-slate-700'
-              }`}
-            >
-              <Scale className="w-3.5 h-3.5" />
-              <span>
-                {isAr
-                  ? `مقارنة مزارعي (${comparedZones.length >= 2 ? comparedZones.length : zones.length})`
-                  : `Compare Farms (${comparedZones.length >= 2 ? comparedZones.length : zones.length})`}
-              </span>
-            </button>
-          )}
+          {(zones.length >= 2 || zones.length > 0) && (
+            <div className="flex items-center gap-1.5 w-full pt-1">
+              {zones.length >= 2 && (
+                <button
+                  type="button"
+                  data-testid="open-zone-comparison-btn"
+                  onClick={() => setShowCompareDrawer(!showCompareDrawer)}
+                  className={`flex-1 min-h-[30px] px-2 py-1 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border cursor-pointer ${
+                    showCompareDrawer || comparedZones.length >= 2
+                      ? 'bg-amber-500 text-slate-950 border-amber-300'
+                      : 'bg-slate-800 text-amber-300 border-amber-500/40 hover:bg-slate-700'
+                  }`}
+                >
+                  <Scale className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {isAr
+                      ? `مقارنة مزارعي (${comparedZones.length >= 2 ? comparedZones.length : zones.length})`
+                      : `Compare Farms (${comparedZones.length >= 2 ? comparedZones.length : zones.length})`}
+                  </span>
+                </button>
+              )}
 
-          {zones.length > 0 && (
-            <button
-              type="button"
-              data-testid="clear-all-zones-btn"
-              onClick={onClearAllZones}
-              className="min-h-[30px] px-2 py-1 rounded-lg text-[11px] font-bold bg-rose-600/90 hover:bg-rose-500 text-white flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>{isAr ? 'مسح كل المزارع' : 'Clear All'}</span>
-            </button>
+              {zones.length > 0 && (
+                <button
+                  type="button"
+                  data-testid="clear-all-zones-btn"
+                  onClick={onClearAllZones}
+                  className="min-h-[30px] px-2.5 py-1 rounded-xl text-[11px] font-bold bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-300 flex items-center justify-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-3 h-3 shrink-0" />
+                  <span>{isAr ? 'مسح كل المزارع' : 'Clear All'}</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

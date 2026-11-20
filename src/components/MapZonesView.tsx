@@ -710,8 +710,8 @@ export const MapZonesView: React.FC<MapZonesViewProps> = ({
     const nextIdx = zones.length + 1;
     setPendingDraft({
       vertices: boxVerts,
-      defaultNameAr: `زونة زراعية ${nextIdx}`,
-      defaultNameEn: `Study Zone ${nextIdx}`,
+      defaultNameAr: `مزرعتي ${nextIdx}`,
+      defaultNameEn: `My Farm ${nextIdx}`,
     });
   };
 
@@ -895,8 +895,8 @@ export const MapZonesView: React.FC<MapZonesViewProps> = ({
           const nextIdx = zones.length + 1;
           setPendingDraft({
             vertices,
-            defaultNameAr: `زونة زراعية ${nextIdx}`,
-            defaultNameEn: `Study Zone ${nextIdx}`,
+            defaultNameAr: `مزرعتي ${nextIdx}`,
+            defaultNameEn: `My Farm ${nextIdx}`,
           });
         }}
         pendingDraft={pendingDraft}
