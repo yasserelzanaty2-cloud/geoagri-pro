@@ -140,6 +140,15 @@ interface CesiumEarthStageProps {
   zoomCommand: CesiumZoomCommand | null;
   activeSatelliteVintageId?: SatelliteVintageId;
   onSelectSatelliteVintage?: (vintageId: SatelliteVintageId) => void;
+  isComparisonMode?: boolean;
+  onChangeComparisonMode?: (val: boolean) => void;
+  comparisonBaselineVintageId?: SatelliteVintageId;
+  onChangeComparisonBaselineVintageId?: (id: SatelliteVintageId) => void;
+  comparisonTargetVintageId?: SatelliteVintageId;
+  onChangeComparisonTargetVintageId?: (id: SatelliteVintageId) => void;
+  isTimeLapsePlaying?: boolean;
+  onChangeTimeLapsePlaying?: (val: boolean) => void;
+  hideStandaloneVintageWidget?: boolean;
   onSelectPoint: (lat: number, lng: number, terrainHeightMeters: number | null) => void;
   onClickGridCell: (cell: SpatialGridCell) => void;
   onSelectZone?: (zoneId: string) => void;
@@ -2446,6 +2455,15 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
   zoomCommand,
   activeSatelliteVintageId,
   onSelectSatelliteVintage,
+  isComparisonMode: propIsComparisonMode,
+  onChangeComparisonMode,
+  comparisonBaselineVintageId: propComparisonBaseline,
+  onChangeComparisonBaselineVintageId,
+  comparisonTargetVintageId: propComparisonTarget,
+  onChangeComparisonTargetVintageId,
+  isTimeLapsePlaying: propIsTimeLapsePlaying,
+  onChangeTimeLapsePlaying,
+  hideStandaloneVintageWidget = false,
   onSelectPoint,
   onClickGridCell,
   onSelectZone,
@@ -2483,13 +2501,41 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
     onSelectSatelliteVintage?.(vId);
   };
 
-  const [isComparisonMode, setIsComparisonMode] = useState<boolean>(false);
-  const [comparisonBaselineVintageId, setComparisonBaselineVintageId] =
+  const [internalComparisonMode, setInternalComparisonMode] = useState<boolean>(false);
+  const isComparisonMode = propIsComparisonMode !== undefined ? propIsComparisonMode : internalComparisonMode;
+  const setIsComparisonMode = (val: boolean) => {
+    setInternalComparisonMode(val);
+    onChangeComparisonMode?.(val);
+  };
+
+  const [internalComparisonBaseline, setInternalComparisonBaseline] =
     useState<SatelliteVintageId>('2014');
-  const [comparisonTargetVintageId, setComparisonTargetVintageId] =
+  const comparisonBaselineVintageId =
+    propComparisonBaseline !== undefined ? propComparisonBaseline : internalComparisonBaseline;
+  const setComparisonBaselineVintageId = (id: SatelliteVintageId) => {
+    setInternalComparisonBaseline(id);
+    onChangeComparisonBaselineVintageId?.(id);
+  };
+
+  const [internalComparisonTarget, setInternalComparisonTarget] =
     useState<SatelliteVintageId>('2026_latest');
+  const comparisonTargetVintageId =
+    propComparisonTarget !== undefined ? propComparisonTarget : internalComparisonTarget;
+  const setComparisonTargetVintageId = (id: SatelliteVintageId) => {
+    setInternalComparisonTarget(id);
+    onChangeComparisonTargetVintageId?.(id);
+  };
+
   const [splitFraction, setSplitFraction] = useState<number>(0.5);
-  const [isTimeLapsePlaying, setIsTimeLapsePlaying] = useState<boolean>(false);
+
+  const [internalTimeLapsePlaying, setInternalTimeLapsePlaying] = useState<boolean>(false);
+  const isTimeLapsePlaying =
+    propIsTimeLapsePlaying !== undefined ? propIsTimeLapsePlaying : internalTimeLapsePlaying;
+  const setIsTimeLapsePlaying = (val: boolean) => {
+    setInternalTimeLapsePlaying(val);
+    onChangeTimeLapsePlaying?.(val);
+  };
+
   const [isTimeLapsePanelOpen, setIsTimeLapsePanelOpen] = useState<boolean>(false);
   const [isDraggingSplitHandle, setIsDraggingSplitHandle] = useState<boolean>(false);
 
@@ -4571,245 +4617,247 @@ export const CesiumEarthStage: React.FC<CesiumEarthStageProps> = ({
         </div>
       )}
 
-      {/* Floating Historical Satellite Vintage & Time-Lapse Control Widget */}
-      <div
-        data-testid="satellite-vintage-timelapse-widget"
-        className="absolute bottom-16 start-1/2 -translate-x-1/2 z-20 max-w-[95vw] sm:max-w-2xl pointer-events-auto"
-      >
-        <div className="rounded-2xl backdrop-blur-md bg-slate-950/90 border border-white/15 shadow-2xl overflow-hidden text-xs text-white transition-all">
-          {/* Widget Header Bar */}
-          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/80 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsTimeLapsePanelOpen(!isTimeLapsePanelOpen)}
-                className="flex items-center gap-1.5 font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer"
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                <span>
-                  {isAr
-                    ? 'أرشيف وتطور الأقمار الصناعية (2014 – 2026)'
-                    : 'Satellite Time-Lapse (2014–2026)'}
-                </span>
-                {isTimeLapsePanelOpen ? (
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                ) : (
-                  <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
-                )}
-              </button>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                {isComparisonMode
-                  ? isAr
-                    ? 'مقارنة قبل وبعد'
-                    : 'Split Mode'
-                  : isTimeLapsePlaying
-                  ? isAr
-                    ? 'عرض تتابعي نشط'
-                    : 'Playing'
-                  : getSatelliteVintageById(activeVintageId).year}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1">
-              {/* Time-Lapse Play/Pause button */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isComparisonMode) setIsComparisonMode(false);
-                  setIsTimeLapsePlaying(!isTimeLapsePlaying);
-                }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold text-[11px] border cursor-pointer transition ${
-                  isTimeLapsePlaying
-                    ? 'bg-amber-600/30 border-amber-400 text-amber-200'
-                    : 'bg-emerald-600/25 border-emerald-500/40 text-emerald-200 hover:bg-emerald-600/40'
-                }`}
-              >
-                {isTimeLapsePlaying ? (
-                  <>
-                    <Pause className="w-3 h-3" />
-                    <span>{isAr ? 'إيقاف' : 'Pause'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3 h-3 fill-current" />
-                    <span>{isAr ? 'عرض تتابعي' : 'Time-Lapse'}</span>
-                  </>
-                )}
-              </button>
-
-              {/* Before & After Comparison Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isTimeLapsePlaying) setIsTimeLapsePlaying(false);
-                  setIsComparisonMode(!isComparisonMode);
-                  if (!isTimeLapsePanelOpen) setIsTimeLapsePanelOpen(true);
-                }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold text-[11px] border cursor-pointer transition ${
-                  isComparisonMode
-                    ? 'bg-sky-600/40 border-sky-400 text-white shadow-[0_0_10px_rgba(56,189,248,0.5)]'
-                    : 'bg-slate-800/80 border-white/10 text-slate-300 hover:text-white'
-                }`}
-              >
-                <Split className="w-3 h-3" />
-                <span>{isAr ? 'مقارنة قبل وبعد' : 'Split Compare'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Expanded Body: Year Timeline Chips & Comparison Pickers */}
-          {isTimeLapsePanelOpen && (
-            <div className="p-3 space-y-2.5">
-              {isComparisonMode ? (
-                /* Comparison Pickers */
-                <div className="space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                    {/* Left Baseline */}
-                    <div className="p-2 rounded-xl bg-amber-950/30 border border-amber-500/30 space-y-1">
-                      <div className="font-bold text-amber-300 flex items-center justify-between">
-                        <span>
-                          {isAr
-                            ? 'المرئية السابقة (قبل الاستصلاح):'
-                            : 'Baseline (Before):'}
-                        </span>
-                        <span className="text-[10px] font-mono text-amber-200/80">
-                          {
-                            getSatelliteVintageById(comparisonBaselineVintageId)
-                              .resolutionBadge
-                          }
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {SATELLITE_VINTAGES_CATALOG.filter((v) => v.year <= 2022).map(
-                          (v) => (
-                            <button
-                              key={`base-${v.id}`}
-                              type="button"
-                              onClick={() => setComparisonBaselineVintageId(v.id)}
-                              className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer border transition ${
-                                comparisonBaselineVintageId === v.id
-                                  ? 'bg-amber-600 text-white border-amber-400 font-bold shadow'
-                                  : 'bg-slate-900 border-white/10 text-slate-300 hover:text-white'
-                              }`}
-                            >
-                              {v.year}
-                            </button>
-                          )
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right Target */}
-                    <div className="p-2 rounded-xl bg-emerald-950/30 border border-emerald-500/30 space-y-1">
-                      <div className="font-bold text-emerald-300 flex items-center justify-between">
-                        <span>
-                          {isAr
-                            ? 'المرئية الحديثة (الوضع الحالي):'
-                            : 'Target (Current):'}
-                        </span>
-                        <span className="text-[10px] font-mono text-emerald-200/80">
-                          {
-                            getSatelliteVintageById(comparisonTargetVintageId)
-                              .resolutionBadge
-                          }
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {SATELLITE_VINTAGES_CATALOG.filter((v) => v.year >= 2022).map(
-                          (v) => (
-                            <button
-                              key={`target-${v.id}`}
-                              type="button"
-                              onClick={() => setComparisonTargetVintageId(v.id)}
-                              className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer border transition ${
-                                comparisonTargetVintageId === v.id
-                                  ? 'bg-emerald-600 text-white border-emerald-400 font-bold shadow'
-                                  : 'bg-slate-900 border-white/10 text-slate-300 hover:text-white'
-                              }`}
-                            >
-                              {v.year} {v.isLatest ? (isAr ? 'الحية' : 'Live') : ''}
-                            </button>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Standard Timeline Chips */
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>
-                      {isAr
-                        ? 'اختر سنة المرئية الفضائية لمعاينة تطور الأرض:'
-                        : 'Select Vintage Year:'}
-                    </span>
-                    <span className="text-[10px] font-mono text-emerald-300 font-bold">
-                      {getSatelliteVintageById(activeVintageId).dateLabelAr}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {SATELLITE_VINTAGES_CATALOG.map((v) => {
-                      const isSel = activeVintageId === v.id;
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => handleSelectVintage(v.id)}
-                          title={isAr ? v.descriptionAr : v.descriptionEn}
-                          className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold cursor-pointer border transition flex items-center gap-1 ${
-                            isSel
-                              ? 'bg-emerald-600 border-emerald-400 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)]'
-                              : 'bg-slate-900/80 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800'
-                          }`}
-                        >
-                          <span>{v.year}</span>
-                          {v.isLatest && (
-                            <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-200">
-                              {isAr ? 'الحية' : 'LIVE'}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Satellite Sensor & Resolution Metadata Badge */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10 text-[10px] text-slate-400 font-mono">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-sky-400 shrink-0" />
-                  <span className="text-slate-300">
-                    {
-                      getSatelliteVintageById(
-                        isComparisonMode
-                          ? comparisonTargetVintageId
-                          : activeVintageId
-                      ).sensor
-                    }
+      {/* Floating Historical Satellite Vintage & Time-Lapse Control Widget (Shown only when standalone/uncontrolled) */}
+      {!hideStandaloneVintageWidget && !onSelectSatelliteVintage && (
+        <div
+          data-testid="satellite-vintage-timelapse-widget"
+          className="absolute bottom-16 start-1/2 -translate-x-1/2 z-20 max-w-[95vw] sm:max-w-2xl pointer-events-auto"
+        >
+          <div className="rounded-2xl backdrop-blur-md bg-slate-950/90 border border-white/15 shadow-2xl overflow-hidden text-xs text-white transition-all">
+            {/* Widget Header Bar */}
+            <div className="flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/80 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTimeLapsePanelOpen(!isTimeLapsePanelOpen)}
+                  className="flex items-center gap-1.5 font-bold text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>
+                    {isAr
+                      ? 'أرشيف وتطور الأقمار الصناعية (2014 – 2026)'
+                      : 'Satellite Time-Lapse (2014–2026)'}
                   </span>
-                  <span className="text-white/30">•</span>
-                  <span className="text-emerald-300 font-bold">
-                    {
-                      getSatelliteVintageById(
-                        isComparisonMode
-                          ? comparisonTargetVintageId
-                          : activeVintageId
-                      ).resolutionBadge
-                    }
-                  </span>
-                </div>
-                <span className="text-slate-400">
-                  {isAr
-                    ? 'خالية من الغيوم والضباب 100%'
-                    : '100% Cloudless / High Contrast'}
+                  {isTimeLapsePanelOpen ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                </button>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  {isComparisonMode
+                    ? isAr
+                      ? 'مقارنة قبل وبعد'
+                      : 'Split Mode'
+                    : isTimeLapsePlaying
+                    ? isAr
+                      ? 'عرض تتابعي نشط'
+                      : 'Playing'
+                    : getSatelliteVintageById(activeVintageId).year}
                 </span>
               </div>
+
+              <div className="flex items-center gap-1">
+                {/* Time-Lapse Play/Pause button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isComparisonMode) setIsComparisonMode(false);
+                    setIsTimeLapsePlaying(!isTimeLapsePlaying);
+                  }}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold text-[11px] border cursor-pointer transition ${
+                    isTimeLapsePlaying
+                      ? 'bg-amber-600/30 border-amber-400 text-amber-200'
+                      : 'bg-emerald-600/25 border-emerald-500/40 text-emerald-200 hover:bg-emerald-600/40'
+                  }`}
+                >
+                  {isTimeLapsePlaying ? (
+                    <>
+                      <Pause className="w-3 h-3" />
+                      <span>{isAr ? 'إيقاف' : 'Pause'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3 h-3 fill-current" />
+                      <span>{isAr ? 'عرض تتابعي' : 'Time-Lapse'}</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Before & After Comparison Toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isTimeLapsePlaying) setIsTimeLapsePlaying(false);
+                    setIsComparisonMode(!isComparisonMode);
+                    if (!isTimeLapsePanelOpen) setIsTimeLapsePanelOpen(true);
+                  }}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold text-[11px] border cursor-pointer transition ${
+                    isComparisonMode
+                      ? 'bg-sky-600/40 border-sky-400 text-white shadow-[0_0_10px_rgba(56,189,248,0.5)]'
+                      : 'bg-slate-800/80 border-white/10 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <Split className="w-3 h-3" />
+                  <span>{isAr ? 'مقارنة قبل وبعد' : 'Split Compare'}</span>
+                </button>
+              </div>
             </div>
-          )}
+
+            {/* Expanded Body: Year Timeline Chips & Comparison Pickers */}
+            {isTimeLapsePanelOpen && (
+              <div className="p-3 space-y-2.5">
+                {isComparisonMode ? (
+                  /* Comparison Pickers */
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      {/* Left Baseline */}
+                      <div className="p-2 rounded-xl bg-amber-950/30 border border-amber-500/30 space-y-1">
+                        <div className="font-bold text-amber-300 flex items-center justify-between">
+                          <span>
+                            {isAr
+                              ? 'المرئية السابقة (قبل الاستصلاح):'
+                              : 'Baseline (Before):'}
+                          </span>
+                          <span className="text-[10px] font-mono text-amber-200/80">
+                            {
+                              getSatelliteVintageById(comparisonBaselineVintageId)
+                                .resolutionBadge
+                            }
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {SATELLITE_VINTAGES_CATALOG.filter((v) => v.year <= 2022).map(
+                            (v) => (
+                              <button
+                                key={`base-${v.id}`}
+                                type="button"
+                                onClick={() => setComparisonBaselineVintageId(v.id)}
+                                className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer border transition ${
+                                  comparisonBaselineVintageId === v.id
+                                    ? 'bg-amber-600 text-white border-amber-400 font-bold shadow'
+                                    : 'bg-slate-900 border-white/10 text-slate-300 hover:text-white'
+                                }`}
+                              >
+                                {v.year}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right Target */}
+                      <div className="p-2 rounded-xl bg-emerald-950/30 border border-emerald-500/30 space-y-1">
+                        <div className="font-bold text-emerald-300 flex items-center justify-between">
+                          <span>
+                            {isAr
+                              ? 'المرئية الحديثة (الوضع الحالي):'
+                              : 'Target (Current):'}
+                          </span>
+                          <span className="text-[10px] font-mono text-emerald-200/80">
+                            {
+                              getSatelliteVintageById(comparisonTargetVintageId)
+                                .resolutionBadge
+                            }
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {SATELLITE_VINTAGES_CATALOG.filter((v) => v.year >= 2022).map(
+                            (v) => (
+                              <button
+                                key={`target-${v.id}`}
+                                type="button"
+                                onClick={() => setComparisonTargetVintageId(v.id)}
+                                className={`px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer border transition ${
+                                  comparisonTargetVintageId === v.id
+                                    ? 'bg-emerald-600 text-white border-emerald-400 font-bold shadow'
+                                    : 'bg-slate-900 border-white/10 text-slate-300 hover:text-white'
+                                }`}
+                              >
+                                {v.year} {v.isLatest ? (isAr ? 'الحية' : 'Live') : ''}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Standard Timeline Chips */
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>
+                        {isAr
+                          ? 'اختر سنة المرئية الفضائية لمعاينة تطور الأرض:'
+                          : 'Select Vintage Year:'}
+                      </span>
+                      <span className="text-[10px] font-mono text-emerald-300 font-bold">
+                        {getSatelliteVintageById(activeVintageId).dateLabelAr}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {SATELLITE_VINTAGES_CATALOG.map((v) => {
+                        const isSel = activeVintageId === v.id;
+                        return (
+                          <button
+                            key={v.id}
+                            type="button"
+                            onClick={() => handleSelectVintage(v.id)}
+                            title={isAr ? v.descriptionAr : v.descriptionEn}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold cursor-pointer border transition flex items-center gap-1 ${
+                              isSel
+                                ? 'bg-emerald-600 border-emerald-400 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                                : 'bg-slate-900/80 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800'
+                            }`}
+                          >
+                            <span>{v.year}</span>
+                            {v.isLatest && (
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-200">
+                                {isAr ? 'الحية' : 'LIVE'}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Satellite Sensor & Resolution Metadata Badge */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10 text-[10px] text-slate-400 font-mono">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-sky-400 shrink-0" />
+                    <span className="text-slate-300">
+                      {
+                        getSatelliteVintageById(
+                          isComparisonMode
+                            ? comparisonTargetVintageId
+                            : activeVintageId
+                        ).sensor
+                      }
+                    </span>
+                    <span className="text-white/30">•</span>
+                    <span className="text-emerald-300 font-bold">
+                      {
+                        getSatelliteVintageById(
+                          isComparisonMode
+                            ? comparisonTargetVintageId
+                            : activeVintageId
+                        ).resolutionBadge
+                      }
+                    </span>
+                  </div>
+                  <span className="text-slate-400">
+                    {isAr
+                      ? 'خالية من الغيوم والضباب 100%'
+                      : '100% Cloudless / High Contrast'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {!viewerReady && !contextLost && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/90 pointer-events-none">

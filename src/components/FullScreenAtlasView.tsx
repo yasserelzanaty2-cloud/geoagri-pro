@@ -29,6 +29,7 @@ import {
   OpenMeteoSoilMoistureDepth,
   PresetFarmZone,
   RegionDrawingToolMode,
+  SatelliteVintageId,
   SoilProfile,
   SoilTexture,
   SpatialGridCell,
@@ -260,6 +261,14 @@ export const FullScreenAtlasView: React.FC<FullScreenAtlasViewProps> = ({
   const [showPushAlertsDrawer, setShowPushAlertsDrawer] = useState<boolean>(false);
 
   const [baseMapStyle, setBaseMapStyle] = useState<BaseMapStyleId>('hybrid');
+  const [activeSatelliteVintageId, setActiveSatelliteVintageId] =
+    useState<SatelliteVintageId>('2026_latest');
+  const [isComparisonMode, setIsComparisonMode] = useState<boolean>(false);
+  const [comparisonBaselineVintageId, setComparisonBaselineVintageId] =
+    useState<SatelliteVintageId>('2014');
+  const [comparisonTargetVintageId, setComparisonTargetVintageId] =
+    useState<SatelliteVintageId>('2026_latest');
+  const [isTimeLapsePlaying, setIsTimeLapsePlaying] = useState<boolean>(false);
   const [soilMoistureOverlayEnabled, setSoilMoistureOverlayEnabled] = useState<boolean>(false);
   const [soilMoistureDepthMode, setSoilMoistureDepthMode] =
     useState<OpenMeteoSoilMoistureDepth>('soil_moisture_0cm');
@@ -870,6 +879,17 @@ export const FullScreenAtlasView: React.FC<FullScreenAtlasViewProps> = ({
         blendDayNightOverlay={blendDayNightOverlay}
         flyToTarget={flyToTarget}
         zoomCommand={zoomCommand}
+        activeSatelliteVintageId={activeSatelliteVintageId}
+        onSelectSatelliteVintage={setActiveSatelliteVintageId}
+        isComparisonMode={isComparisonMode}
+        onChangeComparisonMode={setIsComparisonMode}
+        comparisonBaselineVintageId={comparisonBaselineVintageId}
+        onChangeComparisonBaselineVintageId={setComparisonBaselineVintageId}
+        comparisonTargetVintageId={comparisonTargetVintageId}
+        onChangeComparisonTargetVintageId={setComparisonTargetVintageId}
+        isTimeLapsePlaying={isTimeLapsePlaying}
+        onChangeTimeLapsePlaying={setIsTimeLapsePlaying}
+        hideStandaloneVintageWidget={true}
         onSelectPoint={handleSelectPointOnGlobe}
         onClickGridCell={(cell) => {
           setSelectedCell(cell);
@@ -906,6 +926,16 @@ export const FullScreenAtlasView: React.FC<FullScreenAtlasViewProps> = ({
 
       <MapFloatingHud
         language={language}
+        activeSatelliteVintageId={activeSatelliteVintageId}
+        onSelectSatelliteVintage={setActiveSatelliteVintageId}
+        isComparisonMode={isComparisonMode}
+        onChangeComparisonMode={setIsComparisonMode}
+        comparisonBaselineVintageId={comparisonBaselineVintageId}
+        onChangeComparisonBaselineVintageId={setComparisonBaselineVintageId}
+        comparisonTargetVintageId={comparisonTargetVintageId}
+        onChangeComparisonTargetVintageId={setComparisonTargetVintageId}
+        isTimeLapsePlaying={isTimeLapsePlaying}
+        onChangeTimeLapsePlaying={setIsTimeLapsePlaying}
         containerRef={viewportWrapperRef}
         isSoilMoistureActive={isSoilMoistureActive}
         activeThematicMap={activeThematicMap}

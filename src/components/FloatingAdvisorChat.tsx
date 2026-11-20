@@ -323,7 +323,7 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowGeminiModal(true)}
-                  title={isAr ? 'إعدادات ذكاء Google Gemini (Gemini 4 Hydrogen / 3.8 Flash)' : 'Google Gemini (4 Hydrogen / 3.8 Flash) Settings'}
+                  title={isAr ? 'إعدادات ذكاء Google Gemini (Gemini 2.5 Flash / Pro)' : 'Google Gemini (2.5 Flash / Pro) Settings'}
                   className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition ${
                     hasGeminiApiKey()
                       ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
@@ -333,7 +333,7 @@ export const FloatingAdvisorChat: React.FC<FloatingAdvisorChatProps> = ({
                   <Key className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span className="hidden sm:inline">
                     {hasGeminiApiKey()
-                      ? 'Gemini 4 / 3.8'
+                      ? 'Gemini 2.5'
                       : isAr
                       ? 'تفعيل Gemini'
                       : 'Gemini AI'}

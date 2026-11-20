@@ -860,10 +860,13 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
         contentsPayload: Parameters<typeof ai.models.generateContent>[0]['contents'],
         thinking: ThinkingLevel
       ) => {
-        const modelsToTry =
-          Date.now() < primaryCooldownUntil
-            ? (['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'] as const)
-            : (['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'] as const);
+        const modelsToTry = [
+          'gemini-2.5-flash',
+          'gemini-2.5-pro',
+          'gemini-2.0-flash',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+        ] as const;
         let lastErr: unknown;
         for (const modelName of modelsToTry) {
           try {
@@ -874,7 +877,7 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
                 config: {
                   systemInstruction,
                   tools: [{ functionDeclarations: GEOAGRI_FUNCTION_DECLARATIONS }],
-                  ...(modelName.includes('2.5') || modelName.includes('3.8') || modelName.includes('hydrogen')
+                  ...(modelName.includes('2.5')
                     ? {
                         thinkingConfig: {
                           thinkingLevel: thinking,
@@ -895,9 +898,6 @@ ${JSON.stringify(farmContext, null, 2)}${mediaNote}${historyText}`;
               msg.includes('timeout') ||
               msg.includes('404') ||
               msg.includes('NOT_FOUND');
-            if (modelName === 'gemini-4-hydrogen' && (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED'))) {
-              primaryCooldownUntil = Date.now() + 10 * 60 * 1000;
-            }
             if (!isQuotaOrRateLimit || modelName === modelsToTry[modelsToTry.length - 1]) {
               throw err;
             }

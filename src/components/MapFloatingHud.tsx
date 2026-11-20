@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Clock,
   Cloud,
   CloudLightning,
   CloudRain,
@@ -59,6 +60,7 @@ import {
   OpenMeteoSoilMoistureDepth,
   PrecipAccumWindow,
   PressureAltitudeLevel,
+  SatelliteVintageId,
   SoilProfile,
   SoilTexture,
   SpatialGridCell,
@@ -75,12 +77,14 @@ import {
   GlobalElevationPointReading,
   GlobalSnowAndBlizzardReading,
   GlobalTemperaturePointReading,
+  SATELLITE_VINTAGES_CATALOG,
   SoilMoisturePointReading,
   THEMATIC_MAPS_META,
   evaluateDemDrainageAtLatLon,
   evaluateGlobalDayNightSolarAtLatLon,
   evaluateGlobalSnowAndBlizzardAtLatLon,
   evaluateSpatialSpectralOrSoilAtLatLon,
+  getSatelliteVintageById,
 } from '../utils/thematicMapRenderer';
 import {
   getSatelliteMissionCatalog,
@@ -486,6 +490,16 @@ interface MapFloatingHudProps {
   topRightDrawers?: React.ReactNode;
   hasActiveTopRightDrawer?: boolean;
   onCloseTopRightDrawers?: () => void;
+  activeSatelliteVintageId?: SatelliteVintageId;
+  onSelectSatelliteVintage?: (vintageId: SatelliteVintageId) => void;
+  isComparisonMode?: boolean;
+  onChangeComparisonMode?: (val: boolean) => void;
+  comparisonBaselineVintageId?: SatelliteVintageId;
+  onChangeComparisonBaselineVintageId?: (id: SatelliteVintageId) => void;
+  comparisonTargetVintageId?: SatelliteVintageId;
+  onChangeComparisonTargetVintageId?: (id: SatelliteVintageId) => void;
+  isTimeLapsePlaying?: boolean;
+  onChangeTimeLapsePlaying?: (val: boolean) => void;
 }
 
 type DropdownSection = 'maps' | 'satellites' | 'zones' | 'view';
@@ -584,8 +598,80 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
   topRightDrawers,
   hasActiveTopRightDrawer = false,
   onCloseTopRightDrawers,
+  activeSatelliteVintageId: propActiveSatelliteVintageId,
+  onSelectSatelliteVintage,
+  isComparisonMode: propIsComparisonMode,
+  onChangeComparisonMode,
+  comparisonBaselineVintageId: propComparisonBaseline,
+  onChangeComparisonBaselineVintageId,
+  comparisonTargetVintageId: propComparisonTarget,
+  onChangeComparisonTargetVintageId,
+  isTimeLapsePlaying: propIsTimeLapsePlaying,
+  onChangeTimeLapsePlaying,
 }) => {
   const isAr = language === 'ar';
+
+  const [internalActiveVintage, setInternalActiveVintage] =
+    useState<SatelliteVintageId>('2026_latest');
+  const activeSatelliteVintageId =
+    propActiveSatelliteVintageId !== undefined
+      ? propActiveSatelliteVintageId
+      : internalActiveVintage;
+  const handleSelectVintage = (vId: SatelliteVintageId) => {
+    setInternalActiveVintage(vId);
+    onSelectSatelliteVintage?.(vId);
+  };
+
+  const [internalComparisonMode, setInternalComparisonMode] = useState<boolean>(false);
+  const isComparisonMode =
+    propIsComparisonMode !== undefined ? propIsComparisonMode : internalComparisonMode;
+  const setIsComparisonMode = (val: boolean) => {
+    setInternalComparisonMode(val);
+    onChangeComparisonMode?.(val);
+  };
+
+  const [internalBaselineVintage, setInternalBaselineVintage] =
+    useState<SatelliteVintageId>('2014');
+  const comparisonBaselineVintageId =
+    propComparisonBaseline !== undefined ? propComparisonBaseline : internalBaselineVintage;
+  const setComparisonBaselineVintageId = (id: SatelliteVintageId) => {
+    setInternalBaselineVintage(id);
+    onChangeComparisonBaselineVintageId?.(id);
+  };
+
+  const [internalTargetVintage, setInternalTargetVintage] =
+    useState<SatelliteVintageId>('2026_latest');
+  const comparisonTargetVintageId =
+    propComparisonTarget !== undefined ? propComparisonTarget : internalTargetVintage;
+  const setComparisonTargetVintageId = (id: SatelliteVintageId) => {
+    setInternalTargetVintage(id);
+    onChangeComparisonTargetVintageId?.(id);
+  };
+
+  const [internalTimeLapsePlaying, setInternalTimeLapsePlaying] = useState<boolean>(false);
+  const isTimeLapsePlaying =
+    propIsTimeLapsePlaying !== undefined ? propIsTimeLapsePlaying : internalTimeLapsePlaying;
+  const setIsTimeLapsePlaying = (val: boolean) => {
+    setInternalTimeLapsePlaying(val);
+    onChangeTimeLapsePlaying?.(val);
+  };
+
+  // Option 3: Unified Bottom Command Dock state
+  type TopBarTabId = 'none' | 'layers' | 'timelapse_compare' | 'fields' | 'risk' | 'nav';
+  const [activeTopTab, setActiveTopTab] = useState<TopBarTabId>('none');
+  const [layersSubTab, setLayersSubTab] =
+    useState<'thematic' | 'satellites' | 'basemap' | 'legend'>('thematic');
+
+  useEffect(() => {
+    if (!isTimeLapsePlaying) return;
+    const interval = setInterval(() => {
+      const vintages = SATELLITE_VINTAGES_CATALOG;
+      const currIdx = vintages.findIndex((v) => v.id === activeSatelliteVintageId);
+      const nextIdx = (currIdx + 1) % vintages.length;
+      handleSelectVintage(vintages[nextIdx].id);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isTimeLapsePlaying, activeSatelliteVintageId]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [satellitePickerOpen, setSatellitePickerOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<DropdownSection>('maps');
@@ -1087,8 +1173,9 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
             onClick={() => {
               setMenuOpen(false);
               setSatellitePickerOpen(false);
+              setActiveTopTab('none');
             }}
-            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+            className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-600 text-slate-300 hover:text-white cursor-pointer"
             aria-label={isAr ? 'إغلاق القائمة' : 'Close menu'}
           >
             <X className="w-3.5 h-3.5" />
@@ -2276,6 +2363,161 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
             </div>
   ) : null;
 
+  const timelapseCompareNode = activeTopTab === 'timelapse_compare' ? (
+    <div
+      data-testid="top-dropdown-timelapse-compare"
+      className="w-[clamp(320px,94vw,640px)] max-h-[min(76dvh,560px)] overflow-y-auto bg-slate-950/96 backdrop-blur-2xl border border-sky-400/40 rounded-2xl p-3 sm:p-4 shadow-[0_24px_64px_rgba(0,0,0,0.85)] text-slate-100 flex flex-col gap-3 text-xs pointer-events-auto"
+    >
+      <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/10">
+        <div className="flex items-center gap-2">
+          <Sliders className="w-4 h-4 text-sky-400" />
+          <span className="font-bold text-white text-sm">
+            {isAr ? 'مقارنة الأقمار الصناعية والتطور الزمني (2014 – 2026)' : 'Satellite Time-Lapse & Split Comparison'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTopTab('none')}
+          className="p-1 rounded-lg bg-slate-900 hover:bg-rose-600 text-slate-300 hover:text-white cursor-pointer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Comparison Mode Toggle */}
+      <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/80 border border-white/10">
+        <div>
+          <div className="font-bold text-white">
+            {isAr ? 'تفعيل الشاشة المقسومة (مقارنة قبل / بعد)' : 'Enable Split-Screen Comparison'}
+          </div>
+          <div className="text-[11px] text-slate-400">
+            {isAr ? 'اسحب الفاصل الأبيض التفاعلي في وسط الخريطة لمقارنة التطور البصري والزراعي.' : 'Drag the split divider line across the map to compare land evolution.'}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsComparisonMode(!isComparisonMode)}
+          className={`px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-colors border ${
+            isComparisonMode ? 'bg-emerald-600 text-white border-emerald-400' : 'bg-slate-800 text-slate-300 border-white/10'
+          }`}
+        >
+          {isComparisonMode ? (isAr ? 'مفعلة' : 'Enabled') : (isAr ? 'معطلة' : 'Disabled')}
+        </button>
+      </div>
+
+      {/* Baseline & Target Selectors */}
+      {isComparisonMode && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-900/60 border border-white/10">
+          <div>
+            <label className="block text-[11px] font-bold text-sky-300 mb-1">
+              {isAr ? '1. صورة الأساس (قبل - يسار الشاشة):' : '1. Baseline Imagery (Before - Left):'}
+            </label>
+            <select
+              value={comparisonBaselineVintageId}
+              onChange={(e) => setComparisonBaselineVintageId(e.target.value as SatelliteVintageId)}
+              className="w-full bg-slate-950 border border-white/20 rounded-xl px-2.5 py-2 text-white font-mono font-bold focus:border-sky-400 outline-none"
+            >
+              {SATELLITE_VINTAGES_CATALOG.filter((v) => v.year <= 2022).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.year} — {isAr ? v.dateLabelAr : v.dateLabelEn} ({v.sensor})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-emerald-300 mb-1">
+              {isAr ? '2. صورة المقارنة (بعد - يمين الشاشة):' : '2. Target Imagery (After - Right):'}
+            </label>
+            <select
+              value={comparisonTargetVintageId}
+              onChange={(e) => setComparisonTargetVintageId(e.target.value as SatelliteVintageId)}
+              className="w-full bg-slate-950 border border-white/20 rounded-xl px-2.5 py-2 text-white font-mono font-bold focus:border-emerald-400 outline-none"
+            >
+              {SATELLITE_VINTAGES_CATALOG.filter((v) => v.year >= 2022).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.year} — {isAr ? v.dateLabelAr : v.dateLabelEn} {v.isLatest ? (isAr ? '★ الحية' : '★ LIVE') : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* High-res cloudless metadata badge */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-slate-900/40 border border-white/5 text-[11px] text-slate-400 font-mono">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+          <span className="text-white font-bold">{getSatelliteVintageById(activeSatelliteVintageId).sensor}</span>
+          <span>•</span>
+          <span className="text-emerald-300 font-bold">{getSatelliteVintageById(activeSatelliteVintageId).resolutionBadge}</span>
+        </div>
+        <span className="text-emerald-400 font-semibold">{isAr ? 'خالية من الغيوم والضباب 100%' : '100% Cloudless / High Contrast'}</span>
+      </div>
+    </div>
+  ) : null;
+
+  const riskSectionNode = activeTopTab === 'risk' ? (
+    <div
+      data-testid="top-dropdown-risk"
+      className="w-[clamp(320px,94vw,660px)] max-h-[min(76dvh,560px)] overflow-y-auto bg-slate-950/96 backdrop-blur-2xl border border-rose-400/40 rounded-2xl p-3 sm:p-4 shadow-[0_24px_64px_rgba(0,0,0,0.85)] text-slate-100 flex flex-col gap-3 text-xs pointer-events-auto"
+    >
+      <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/10">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-rose-400" />
+          <span className="font-bold text-white text-sm">
+            {isAr ? 'مركز الإنذار المبكر ومؤشرات النقطة اللحظية' : 'Early Warning & Live Telemetry'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTopTab('none')}
+          className="p-1 rounded-lg bg-slate-900 hover:bg-rose-600 text-slate-300 hover:text-white cursor-pointer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Point Telemetry Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="p-2 rounded-xl bg-slate-900/80 border border-white/10">
+          <div className="text-[10px] text-slate-400">{isAr ? 'إحداثيات النقطة' : 'Coordinates'}</div>
+          <div className="font-mono font-bold text-emerald-300 mt-0.5">{inspectedTelemetry.lat.toFixed(4)}°, {inspectedTelemetry.lng.toFixed(4)}°</div>
+        </div>
+        <div className="p-2 rounded-xl bg-slate-900/80 border border-white/10">
+          <div className="text-[10px] text-slate-400">{isAr ? 'الارتفاع عن البحر' : 'Elevation'}</div>
+          <div className="font-mono font-bold text-sky-300 mt-0.5">{inspectedTelemetry.elevation.elevationMeters} م</div>
+        </div>
+        <div className="p-2 rounded-xl bg-slate-900/80 border border-white/10">
+          <div className="text-[10px] text-slate-400">{isAr ? 'مؤشر الخضار NDVI' : 'NDVI Estimate'}</div>
+          <div className="font-mono font-bold text-emerald-400 mt-0.5">{inspectedTelemetry.ndviEstimate.toFixed(3)}</div>
+        </div>
+        <div className="p-2 rounded-xl bg-slate-900/80 border border-white/10">
+          <div className="text-[10px] text-slate-400">{isAr ? 'رطوبة التربة (0-7سم)' : 'Soil Moisture'}</div>
+          <div className="font-mono font-bold text-cyan-300 mt-0.5">{inspectedTelemetry.soilMoisture.activeVolumetricPct}%</div>
+        </div>
+        <div className="p-2 rounded-xl bg-slate-900/80 border border-white/10">
+          <div className="text-[10px] text-slate-400">{isAr ? 'حرارة السطح LST' : 'Surface Temp'}</div>
+          <div className="font-mono font-bold text-amber-300 mt-0.5">{inspectedTelemetry.temperature.activeValueC}°C</div>
+        </div>
+        <div className="p-2 rounded-xl bg-slate-900/80 border border-white/10">
+          <div className="text-[10px] text-slate-400">{isAr ? 'الرياح والأمطار' : 'Wind & Rain'}</div>
+          <div className="font-mono font-bold text-slate-200 mt-0.5">{inspectedTelemetry.windSpeedKmh} كم/س · {inspectedTelemetry.rainMm} مم</div>
+        </div>
+      </div>
+
+      {topRightButtons && (
+        <div className="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/30 flex items-center justify-between">
+          <div>
+            <div className="font-bold text-rose-300">{isAr ? 'تنبيهات المخاطر والإنذار المبكر' : 'Disaster Alerts'}</div>
+            <div className="text-[11px] text-slate-400">{isAr ? 'مراقبة الصقيع، موجات الحر، والآفات الزراعية النشطة.' : 'Frost, heatwaves, and pest outbreak monitoring.'}</div>
+          </div>
+          <div>{topRightButtons}</div>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   const drawingGuidanceBannerNode =
     drawingMode !== 'none' ? (
       <div
@@ -2314,75 +2556,218 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
 
   return (
     <>
-      {/* 1. UNIFIED RESPONSIVE TOP HUD (<1024px FLEX CONTAINER / >=1024px DRAGGABLE FAB + TOP-RIGHT CLUSTER) */}
-      {isDesktopLg ? (
-        <>
-          <div
-            className="absolute z-20 pointer-events-none"
-            style={{ left: `${fabPos.x}px`, top: `${fabPos.y}px` }}
+      {/* 1. TOP DYNAMIC COMMAND BAR (GOOGLE EARTH PRO STYLE) */}
+      <div
+        data-testid="top-dynamic-command-bar"
+        className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex flex-col items-center gap-2 max-w-[calc(100vw-20px)]"
+      >
+        {/* Main Sleek Horizontal Toolbar */}
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-2xl bg-slate-950/92 backdrop-blur-xl border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.65)] text-xs text-white">
+          {/* Tab 1: Layers & Satellites */}
+          <button
+            type="button"
+            data-testid="top-bar-tab-layers"
+            onClick={() => {
+              if (activeTopTab === 'layers') {
+                setActiveTopTab('none');
+                setMenuOpen(false);
+              } else {
+                setActiveTopTab('layers');
+                setActiveSection('maps');
+                setMenuOpen(true);
+              }
+            }}
+            className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+              activeTopTab === 'layers'
+                ? 'bg-emerald-600 text-white border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800 hover:text-white'
+            }`}
           >
-            <div className="relative pointer-events-auto flex flex-row flex-wrap items-start gap-1.5">
-              {launcherButtons}
-              {satellitePickerPopoverNode}
-              {verticalDropdownNode}
-            </div>
-          </div>
+            <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="whitespace-nowrap">{isAr ? 'الخرائط والأقمار' : 'Layers & Sats'}</span>
+            <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-black/40 text-emerald-300 shrink-0">
+              {unifiedSpec.selectionType === 'thematic' && unifiedSpec.activeThematicMap === 'natural'
+                ? 'RGB'
+                : unifiedSpec.badgeCode}
+            </span>
+            {activeTopTab === 'layers' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
 
-          {(topRightButtons || topRightDrawers) && (
-            <div
-              data-testid="map-disaster-early-warning-banner"
-              className="absolute top-3 right-3 z-20 flex flex-col items-end gap-2 pointer-events-none max-w-[calc(100vw-420px)]"
+          {/* Divider */}
+          <div className="w-px h-5 bg-white/15 shrink-0 hidden sm:block" />
+
+          {/* Tab 2: Integrated Time-Lapse & Archive (2014 - 2026) */}
+          <div className="flex items-center gap-1 shrink-0 bg-slate-900/70 p-0.5 rounded-xl border border-white/10">
+            <button
+              type="button"
+              data-testid="top-bar-play-timelapse"
+              onClick={() => setIsTimeLapsePlaying(!isTimeLapsePlaying)}
+              title={isAr ? (isTimeLapsePlaying ? 'إيقاف مؤقت' : 'تشغيل العرض الزمني التتابعي') : (isTimeLapsePlaying ? 'Pause Time-Lapse' : 'Play Time-Lapse')}
+              className={`h-7 sm:h-8 px-2 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 ${
+                isTimeLapsePlaying
+                  ? 'bg-sky-500 text-white border-sky-300 shadow-[0_0_12px_rgba(14,165,233,0.6)] animate-pulse'
+                  : 'bg-slate-950/80 text-sky-400 border-white/5 hover:bg-slate-800 hover:text-white'
+              }`}
             >
-              {topRightButtons}
-              {topRightDrawers}
-            </div>
-          )}
+              {isTimeLapsePlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              <span className="text-[10px] font-bold hidden md:inline">{isTimeLapsePlaying ? (isAr ? 'إيقاف' : 'Pause') : (isAr ? 'تطور' : 'Play')}</span>
+            </button>
 
-          {drawingGuidanceBannerNode}
-        </>
-      ) : (
-        <div
-          data-testid="unified-map-top-hud"
-          className="absolute inset-x-2.5 top-2.5 z-20 pointer-events-none flex flex-col gap-2"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-1.5 w-full">
-            {launcherButtons}
-            {topRightButtons && (
-              <div
-                data-testid="map-disaster-early-warning-banner"
-                className="pointer-events-auto flex flex-wrap items-center justify-end gap-1.5"
-              >
-                {topRightButtons}
-              </div>
-            )}
-          </div>
-          {satellitePickerPopoverNode}
-          {verticalDropdownNode}
-          {topRightDrawers && (
-            <div className="pointer-events-auto self-end w-full max-w-[min(calc(100vw-20px),420px)] flex flex-col items-end gap-2">
-              {topRightDrawers}
+            {/* Year Chips */}
+            <div className="flex items-center gap-1 overflow-x-auto max-w-[210px] sm:max-w-none [scrollbar-width:none]">
+              {SATELLITE_VINTAGES_CATALOG.map((v) => {
+                const isSel = activeSatelliteVintageId === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => handleSelectVintage(v.id)}
+                    title={isAr ? v.descriptionAr : v.descriptionEn}
+                    className={`h-7 sm:h-8 px-2 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer border flex items-center gap-1 ${
+                      isSel
+                        ? 'bg-sky-600 text-white border-sky-400 shadow-[0_0_10px_rgba(14,165,233,0.5)]'
+                        : 'bg-slate-950/50 text-slate-400 border-transparent hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>{v.year}</span>
+                    {v.isLatest && (
+                      <span className="text-[8px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-200">
+                        {isAr ? 'الحية' : 'LIVE'}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          )}
-          {drawingGuidanceBannerNode}
+
+            {/* Split Comparison Toggle Button */}
+            <button
+              type="button"
+              data-testid="top-bar-compare-toggle"
+              onClick={() => {
+                const next = !isComparisonMode;
+                setIsComparisonMode(next);
+                if (next) {
+                  setActiveTopTab('timelapse_compare');
+                  setMenuOpen(false);
+                } else if (activeTopTab === 'timelapse_compare') {
+                  setActiveTopTab('none');
+                }
+              }}
+              title={isAr ? 'مقارنة قبل / بعد بفاصل شاشة تفاعلي' : 'Before / After Split Comparison'}
+              className={`h-7 sm:h-8 px-2 rounded-lg text-[11px] font-bold transition-colors cursor-pointer border flex items-center gap-1 ${
+                isComparisonMode
+                  ? 'bg-amber-600 text-white border-amber-400 shadow-[0_0_10px_rgba(217,119,6,0.5)]'
+                  : 'bg-slate-950/80 text-slate-300 border-white/5 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <Sliders className="w-3 h-3 text-amber-400" />
+              <span className="hidden sm:inline">{isAr ? 'مقارنة' : 'Compare'}</span>
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-white/15 shrink-0 hidden sm:block" />
+
+          {/* Tab 3: Field Tools & Zones */}
+          <button
+            type="button"
+            data-testid="top-bar-tab-fields"
+            onClick={() => {
+              if (activeTopTab === 'fields') {
+                setActiveTopTab('none');
+                setMenuOpen(false);
+              } else {
+                setActiveTopTab('fields');
+                setActiveSection('zones');
+                setMenuOpen(true);
+              }
+            }}
+            className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+              activeTopTab === 'fields'
+                ? 'bg-amber-600 text-white border-amber-400 shadow-[0_0_12px_rgba(217,119,6,0.5)]'
+                : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Sprout className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="whitespace-nowrap">{isAr ? 'أدوات الحقل' : 'Field Tools'}</span>
+            {zones.length > 0 && (
+              <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-black/40 text-amber-300 shrink-0">
+                {zones.length}
+              </span>
+            )}
+            {activeTopTab === 'fields' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Tab 4: Risk Alerts & Telemetry */}
+          <button
+            type="button"
+            data-testid="top-bar-tab-risk"
+            onClick={() => {
+              if (activeTopTab === 'risk') {
+                setActiveTopTab('none');
+              } else {
+                setActiveTopTab('risk');
+                setMenuOpen(false);
+              }
+            }}
+            className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+              activeTopTab === 'risk'
+                ? 'bg-rose-600 text-white border-rose-400 shadow-[0_0_12px_rgba(225,29,72,0.5)]'
+                : 'bg-slate-900/80 text-slate-200 border-white/10 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            <span className="hidden md:inline whitespace-nowrap">{isAr ? 'الإنذار والمؤشرات' : 'Alerts'}</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold shrink-0">
+              {farmAverages.NDVI < 0.25 ? '82%' : '48%'}
+            </span>
+            {activeTopTab === 'risk' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Tab 5: Navigation & 3D Camera */}
+          <button
+            type="button"
+            data-testid="top-bar-tab-nav"
+            onClick={() => {
+              if (activeTopTab === 'nav') {
+                setActiveTopTab('none');
+                setMenuOpen(false);
+              } else {
+                setActiveTopTab('nav');
+                setActiveSection('view');
+                setMenuOpen(true);
+              }
+            }}
+            title={isAr ? 'أدوات العرض والملاحة والكاميرا 3D' : 'View & 3D Navigation'}
+            className={`h-8 sm:h-9 px-2.5 rounded-xl font-bold transition-all cursor-pointer border flex items-center gap-1 ${
+              activeTopTab === 'nav'
+                ? 'bg-indigo-600 text-white border-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.5)]'
+                : 'bg-slate-900/80 text-slate-300 border-white/10 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="hidden lg:inline">{viewMode3D ? '3D' : '2D'}</span>
+            {activeTopTab === 'nav' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
         </div>
-      )}
+
+        {/* Downward Dropdown Sheets */}
+        {verticalDropdownNode}
+        {timelapseCompareNode}
+        {riskSectionNode}
+      </div>
+
+      {drawingGuidanceBannerNode}
 
       {gpsStatus && (
-        <div
-          className={`absolute left-3.5 z-30 bg-slate-950/90 text-emerald-300 px-3 py-1 rounded-xl text-[11px] font-mono border border-emerald-500/40 ${
-            isDesktopLg ? 'top-16' : 'top-[128px] sm:top-[108px]'
-          }`}
-        >
+        <div className="absolute left-3.5 top-16 z-30 bg-slate-950/90 text-emerald-300 px-3 py-1 rounded-xl text-[11px] font-mono border border-emerald-500/40">
           {gpsStatus}
         </div>
       )}
 
-      {/* 3. RIGHT-EDGE ZOOM RAIL + SLIM VENTUSKY VERTICAL COLOR SCALE BAR */}
-      <div
-        className={`absolute right-2.5 sm:right-3 z-30 flex flex-col items-end gap-2 pointer-events-none ${
-          isDesktopLg ? 'top-16' : 'top-[132px] sm:top-[112px]'
-        }`}
-      >
+      {/* Right Edge Zoom Rail */}
+      <div className="absolute right-2.5 sm:right-3 top-16 z-30 flex flex-col items-end gap-2 pointer-events-none">
         <div className="pointer-events-auto flex flex-col gap-1 bg-slate-950/88 backdrop-blur-md border border-white/15 rounded-2xl p-1 shadow-xl">
           <button
             type="button"
@@ -2410,11 +2795,11 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
           </button>
         </div>
 
-        {/* Slim Right-Side Vertical Color Scale Bar (Ventusky-style compact bar) */}
+        {/* Slim Vertical Color Scale Bar */}
         {showGlobalFieldOverlay && effectiveMapId !== 'natural' && (
           <div
             data-testid="right-vertical-color-scale"
-            className="pointer-events-auto w-[46px] max-h-[calc(100dvh-310px)] lg:max-h-[calc(100dvh-260px)] overflow-y-auto rounded-xl bg-slate-950/90 border border-white/15 p-1 shadow-xl flex flex-col items-stretch gap-0.5 text-[9px] font-mono tabular-nums text-white select-none"
+            className="pointer-events-auto w-[46px] max-h-[calc(100dvh-260px)] overflow-y-auto rounded-xl bg-slate-950/90 border border-white/15 p-1 shadow-xl flex flex-col items-stretch gap-0.5 text-[9px] font-mono tabular-nums text-white select-none"
           >
             <div className="text-center text-slate-300 font-bold pb-0.5 border-b border-white/10 truncate">
               {unifiedSpec.unit.trim() || unifiedSpec.badgeCode.slice(0, 4)}
@@ -2441,617 +2826,11 @@ export const MapFloatingHud: React.FC<MapFloatingHudProps> = ({
         )}
       </div>
 
-      {/* 4. UNIFIED DRAGGABLE COLLAPSIBLE BOTTOM TABS POPUP DOCK (HIDES ALL BOTTOM TABS UNTIL CLICKED) */}
-      <div
-        data-testid="draggable-bottom-tabs-dock"
-        className="absolute bottom-3 left-1/2 z-30 pointer-events-none flex flex-col items-center gap-2 w-[clamp(280px,94vw,680px)]"
-        style={{
-          transform: `translate3d(calc(-50% + ${popoverOffset.x}px), ${popoverOffset.y}px, 0)`,
-        }}
-      >
-        {isBottomTabsPopupOpen && (
-          <div
-            data-testid="draggable-bottom-tabs-popup"
-            className="pointer-events-auto w-full max-h-[min(78dvh,560px)] overflow-y-auto bg-slate-950/96 backdrop-blur-xl border border-emerald-400/40 rounded-2xl p-3 sm:p-3.5 shadow-[0_24px_64px_rgba(0,0,0,0.88)] space-y-2.5 text-xs"
-          >
-            {/* Draggable Popup Header */}
-            <div
-              onPointerDown={handlePopoverHeaderPointerDown}
-              onPointerMove={handlePopoverHeaderPointerMove}
-              onPointerUp={handlePopoverHeaderPointerUp}
-              title={
-                isAr
-                  ? 'اسحب لتحريك نافذة التبويبات السفلية بحرية في أي مكان على الشاشة'
-                  : 'Drag to move the Bottom Tabs window freely anywhere on screen'
-              }
-              className="flex items-center justify-between gap-2 pb-2 border-b border-white/10 cursor-grab active:cursor-grabbing select-none"
-            >
-              <div className="flex items-center gap-1.5 min-w-0">
-                <GripVertical className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="font-bold text-emerald-300 truncate">
-                  {isAr
-                    ? 'أدوات الخريطة السفلية (قابلة للسحب)'
-                    : 'Draggable Map Tools Dock'}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {(popoverOffset.x !== 0 || popoverOffset.y !== 0) && (
-                  <button
-                    type="button"
-                    onClick={() => setPopoverOffset({ x: 0, y: 0 })}
-                    title={isAr ? 'إعادة موضع الأداة للمنتصف' : 'Reset dock position'}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 cursor-pointer"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  aria-label={isAr ? 'إخفاء أدوات الخريطة' : 'Collapse map tools'}
-                  onClick={() => {
-                    setIsBottomTabsPopupOpen(false);
-                    onChangeBottomPopover('none');
-                  }}
-                  className="p-1 rounded-lg bg-slate-900 hover:bg-rose-600 text-slate-300 hover:text-white cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Map Bottom Tool Tabs (Color Legend, Point Telemetry, Timeline Scrubber, DEM Points, Zones) */}
-            <div
-              data-testid="bottom-compact-pills-bar"
-              className="flex flex-wrap items-center gap-1.5"
-            >
-              <button
-                type="button"
-                data-testid="bottom-legend-pill-toggle-btn"
-                onClick={() =>
-                  onChangeBottomPopover(activeBottomPopover === 'legend' ? 'none' : 'legend')
-                }
-                className={`h-8 px-2.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                  activeBottomPopover === 'legend'
-                    ? 'bg-emerald-600 text-white border-emerald-300'
-                    : 'bg-slate-900 text-slate-100 border-white/15 hover:bg-slate-800'
-                }`}
-              >
-                <span
-                  className="w-4 h-2 rounded-full border border-white/30 shrink-0"
-                  style={{ background: unifiedSpec.gradientCss }}
-                />
-                <span>{isAr ? 'المفتاح اللوني' : 'Color Legend'}</span>
-                {activeBottomPopover === 'legend' ? (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                data-testid="bottom-telemetry-pill-toggle-btn"
-                onClick={() =>
-                  onChangeBottomPopover(activeBottomPopover === 'telemetry' ? 'none' : 'telemetry')
-                }
-                className={`h-8 px-2.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                  activeBottomPopover === 'telemetry'
-                    ? 'bg-sky-600 text-white border-sky-300'
-                    : 'bg-slate-900 text-sky-200 border-white/15 hover:bg-slate-800'
-                }`}
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full border border-white/40 shrink-0"
-                  style={{ backgroundColor: matchedLegendStop.stopColor }}
-                />
-                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>{isAr ? 'بيانات النقطة' : 'Point Data'}</span>
-                <span className="font-mono text-[10px] text-emerald-300 tabular-nums">
-                  {inspectedTelemetry.elevation.elevationMeters}m
-                </span>
-                {activeBottomPopover === 'telemetry' ? (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                data-testid="bottom-timeline-pill-toggle-btn"
-                onClick={() => setShowTimelineInDock((prev) => !prev)}
-                className={`h-8 px-2.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                  showTimelineInDock
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/60'
-                    : 'bg-slate-900 text-slate-200 border-white/15 hover:bg-slate-800'
-                }`}
-              >
-                <Play className="w-3 h-3 text-amber-400 shrink-0" />
-                <span>{isAr ? 'شريط الزمن والتوقيت' : 'Timeline Bar'}</span>
-              </button>
-
-              {onOpenFieldPointsInspector && (
-                <button
-                  type="button"
-                  data-testid="bottom-dem-points-pill-btn"
-                  onClick={onOpenFieldPointsInspector}
-                  className="h-8 px-2.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border bg-slate-900 text-cyan-200 border-cyan-500/40 hover:bg-slate-800 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <Waves className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span>{isAr ? 'نقاط DEM' : 'DEM Points'}</span>
-                </button>
-              )}
-
-              {onOpenZoneInspector && (
-                <button
-                  type="button"
-                  data-testid="bottom-zone-inspector-pill-btn"
-                  onClick={onOpenZoneInspector}
-                  className="h-8 px-2.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border bg-slate-900 text-emerald-200 border-emerald-500/40 hover:bg-slate-800 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>{isAr ? 'القطاعات A/B/C' : 'Sub-Zones'}</span>
-                </button>
-              )}
-
-              {onOpenSoilSettings && (
-                <button
-                  type="button"
-                  data-testid="bottom-soil-profile-pill-btn"
-                  onClick={onOpenSoilSettings}
-                  className="h-8 px-2.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border bg-slate-900 text-amber-200 border-amber-500/40 hover:bg-slate-800 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <Sliders className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span>{isAr ? 'تحرير ملف التربة والري' : 'Soil Profile & Irrigation'}</span>
-                </button>
-              )}
-            </div>
-
-            {/* Embedded Timeline Scrubber inside Draggable Popup Dock */}
-            {showTimelineInDock && (
-              <div
-                data-testid="ventusky-bottom-timeline-scrubber"
-                dir="ltr"
-                className="bg-slate-900/95 border border-white/15 rounded-xl px-2.5 py-2 flex flex-wrap sm:flex-nowrap items-center gap-2 text-[11px]"
-              >
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    data-testid="timeline-prev-btn"
-                    onClick={() => {
-                      const curH = Math.round(effectiveLocalHour);
-                      if (curH >= 3) {
-                        onChangeUtcHourOverride?.(localHourToUtc(curH - 3));
-                      } else {
-                        onChangeUtcHourOverride?.(localHourToUtc(21));
-                        onChangeMoistureDayIdx(Math.max(0, selectedMoistureDayIdx - 1));
-                      }
-                    }}
-                    className="h-7 px-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-white/10 text-slate-200 flex items-center gap-1 cursor-pointer font-semibold"
-                  >
-                    <SkipBack className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">{isAr ? 'السابق' : 'Prev'}</span>
-                  </button>
-
-                  {onToggleTimelinePlaying && (
-                    <button
-                      type="button"
-                      data-testid="timeline-play-btn"
-                      onClick={onToggleTimelinePlaying}
-                      className={`h-7 px-2.5 rounded-lg border flex items-center gap-1 cursor-pointer font-bold ${
-                        timelinePlaying
-                          ? 'bg-emerald-600 border-emerald-400 text-white'
-                          : 'bg-slate-950 hover:bg-slate-800 border-white/15 text-emerald-300'
-                      }`}
-                    >
-                      {timelinePlaying ? (
-                        <Pause className="w-3.5 h-3.5" />
-                      ) : (
-                        <Play className="w-3.5 h-3.5" />
-                      )}
-                      <span className="hidden md:inline">
-                        {timelinePlaying ? (isAr ? 'إيقاف' : 'Pause') : isAr ? 'تشغيل' : 'Play'}
-                      </span>
-                    </button>
-                  )}
-
-                  {onChangeUtcHourOverride && (
-                    <button
-                      type="button"
-                      data-testid="timeline-live-btn"
-                      onClick={() => {
-                        onChangeUtcHourOverride(null);
-                        onChangeMoistureDayIdx(0);
-                      }}
-                      title={isAr ? 'الرجوع للوقت الحي الآن' : 'Snap to Live Local Time'}
-                      className={`h-7 px-2 rounded-lg border text-[10px] font-bold cursor-pointer whitespace-nowrap ${
-                        isLiveTime && selectedMoistureDayIdx === 0
-                          ? 'bg-amber-500 border-amber-300 text-slate-950'
-                          : 'bg-slate-950 hover:bg-slate-800 border-white/15 text-amber-300'
-                      }`}
-                    >
-                      {isAr ? 'الآن' : 'LIVE'}
-                    </button>
-                  )}
-
-                  <select
-                    aria-label={isAr ? 'تغيير التاريخ' : 'Change Date'}
-                    data-testid="timeline-date-select"
-                    value={selectedMoistureDayIdx}
-                    onChange={(e) => onChangeMoistureDayIdx(Number(e.target.value))}
-                    className="h-7 px-2 rounded-lg bg-white text-slate-900 font-bold text-[11px] font-mono cursor-pointer border border-white/30"
-                  >
-                    {forecast14.map((d, idx) => (
-                      <option key={d.date} value={idx}>
-                        {isAr ? d.dayLabelAr : d.dayLabelEn} · {d.date.slice(5)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <span
-                  data-testid="timeline-current-time-badge"
-                  title={`UTC ${displayUtcTimeStr}`}
-                  className={`font-mono text-[10px] font-bold tabular-nums shrink-0 px-2 py-0.5 rounded-lg border whitespace-nowrap ${
-                    isLiveTime
-                      ? 'bg-amber-500/15 border-amber-400/50 text-amber-300'
-                      : 'bg-slate-950 border-white/10 text-sky-300'
-                  }`}
-                >
-                  {isLiveTime
-                    ? isAr
-                      ? `مباشر ${displayLocalTimeStr}`
-                      : `LIVE ${displayLocalTimeStr}`
-                    : displayLocalTimeStr}
-                </span>
-
-                <div className="flex-1 min-w-[150px] flex flex-col gap-0.5 px-1" dir="ltr">
-                  <input
-                    type="range"
-                    dir="ltr"
-                    data-testid="timeline-hour-slider"
-                    min={0}
-                    max={23}
-                    step={0.25}
-                    value={Math.min(23, Math.max(0, Number(effectiveLocalHour.toFixed(2))))}
-                    onChange={(e) =>
-                      onChangeUtcHourOverride?.(localHourToUtc(Number(e.target.value)))
-                    }
-                    className="w-full accent-sky-400 cursor-pointer h-1.5"
-                  />
-                  <div className="hidden md:block relative h-3.5 text-[9px] font-mono text-slate-400 tabular-nums select-none">
-                    {[0, 3, 6, 9, 12, 15, 18, 21, 23].map((hr) => (
-                      <button
-                        key={hr}
-                        type="button"
-                        onClick={() => onChangeUtcHourOverride?.(localHourToUtc(hr))}
-                        style={{
-                          left: `${(hr / 23) * 100}%`,
-                          transform:
-                            hr === 0
-                              ? 'translateX(0%)'
-                              : hr === 23
-                              ? 'translateX(-100%)'
-                              : 'translateX(-50%)',
-                        }}
-                        className={`absolute top-0 hover:text-white cursor-pointer whitespace-nowrap ${
-                          Math.abs(effectiveLocalHour - hr) < 1.2 ? 'text-sky-300 font-bold' : ''
-                        }`}
-                      >
-                        {`${String(hr).padStart(2, '0')}:00`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  data-testid="timeline-next-btn"
-                  onClick={() => {
-                    const curH = Math.round(effectiveLocalHour);
-                    if (curH <= 20) {
-                      onChangeUtcHourOverride?.(localHourToUtc(curH + 3));
-                    } else {
-                      onChangeUtcHourOverride?.(localHourToUtc(0));
-                      onChangeMoistureDayIdx(
-                        selectedMoistureDayIdx + 1 < forecast14.length
-                          ? selectedMoistureDayIdx + 1
-                          : 0
-                      );
-                    }
-                  }}
-                  className="h-7 px-2 rounded-lg bg-slate-950 hover:bg-slate-800 border border-white/10 text-slate-200 flex items-center gap-1 cursor-pointer font-semibold shrink-0"
-                >
-                  <span className="hidden md:inline">{isAr ? 'التالي' : 'Next'}</span>
-                  <SkipForward className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-
-            {/* Popover 1: Color Legend inside Draggable Popup Dock */}
-            {activeBottomPopover === 'legend' && (
-              <div
-                data-testid="synchronized-bottom-legend"
-                className="bg-slate-900/95 border border-emerald-400/35 rounded-xl p-3 space-y-2 text-xs"
-              >
-                <div className="flex items-start justify-between gap-2 pb-1.5 border-b border-white/10">
-                  <div className="min-w-0">
-                    <div className="font-bold text-emerald-400 leading-snug truncate">
-                      {isAr ? unifiedSpec.shortAr : unifiedSpec.shortEn}
-                    </div>
-                    <div className="text-[10px] text-slate-400 truncate">
-                      {isAr ? authoritativeSourceMeta.providerAr : authoritativeSourceMeta.providerEn}{' '}
-                      · {authoritativeSourceMeta.resolutionLabel}
-                    </div>
-                    <div className="text-[11px] font-mono text-slate-300 tabular-nums truncate">
-                      {isAr ? 'قراءة النقطة:' : 'Point:'}{' '}
-                      <span className="text-white font-bold">
-                        {matchedLegendStop.readingFormatted}
-                      </span>
-                      {vertices.length >= 3 && (
-                        <span className="text-emerald-300">
-                          {' '}
-                          · {isAr ? 'متوسط الحقل:' : 'Mean:'} {unifiedSpec.meanValueFormatted}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={onToggleSubZoneLabels}
-                      className="px-2 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-[10px] text-slate-300 border border-white/10 cursor-pointer whitespace-nowrap"
-                    >
-                      {showSubZoneLabels
-                        ? isAr
-                          ? 'إخفاء الشبكة'
-                          : 'Hide Grid'
-                        : isAr
-                        ? 'الشبكة'
-                        : 'Grid'}
-                    </button>
-                    <button
-                      type="button"
-                      data-testid="toggle-scientific-standards-btn"
-                      onClick={onToggleScientificTable}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap ${
-                        showScientificTable
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-slate-950 hover:bg-slate-800 text-emerald-300 border border-emerald-500/40'
-                      }`}
-                    >
-                      <BookOpen className="w-3 h-3" />
-                      <span>{isAr ? 'المعايير' : 'Scale'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={isAr ? 'إغلاق دليل الألوان' : 'Close color legend'}
-                      onClick={() => onChangeBottomPopover('none')}
-                      className="p-1 rounded-lg bg-slate-950 hover:bg-rose-600 text-slate-300 hover:text-white cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 font-mono text-[10px] text-slate-300">
-                  <span className="shrink-0">
-                    {isAr ? unifiedSpec.minLabelAr : unifiedSpec.minLabelEn}
-                  </span>
-                  <div
-                    className="flex-1 h-2.5 rounded-full border border-white/25"
-                    style={{ background: unifiedSpec.gradientCss }}
-                  />
-                  <span className="shrink-0">
-                    {isAr ? unifiedSpec.maxLabelAr : unifiedSpec.maxLabelEn}
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1 max-h-[min(24vh,180px)] overflow-y-auto pr-0.5">
-                  {unifiedSpec.colorStops.map((stop, idx) => {
-                    const isActiveStop = idx === matchedLegendStop.stopIndex;
-                    return (
-                      <div
-                        key={idx}
-                        data-testid={isActiveStop ? 'active-legend-color-stop' : undefined}
-                        className={`flex items-start gap-2 p-1.5 rounded-xl border transition-colors ${
-                          isActiveStop
-                            ? 'bg-emerald-500/15 border-emerald-400/70 ring-1 ring-emerald-400/60'
-                            : 'bg-slate-950/70 border-white/10'
-                        }`}
-                      >
-                        <span
-                          className="w-3.5 h-3.5 rounded-sm shrink-0 border border-white/35 mt-0.5"
-                          style={{ backgroundColor: stop.color }}
-                        />
-                        <div className="flex-1 min-w-0 space-y-0.5">
-                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-                            <span className="font-bold text-white text-[11px] leading-snug">
-                              {isAr ? stop.labelAr : stop.labelEn}
-                            </span>
-                            <span className="font-mono text-[10px] text-emerald-300 tabular-nums shrink-0">
-                              {stop.rangeLabel}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-300 leading-relaxed">
-                            {isAr ? stop.meaningAr : stop.meaningEn}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Popover 2: Point Telemetry Card inside Draggable Popup Dock */}
-            {activeBottomPopover === 'telemetry' && (
-              <div
-                data-testid="point-telemetry-popover"
-                className="bg-slate-900/95 border border-sky-400/35 rounded-xl p-3 space-y-2 text-xs"
-              >
-                <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-white/10">
-                  <div className="min-w-0">
-                    <div className="font-bold text-white flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="truncate">
-                        {isAr
-                          ? 'بيانات النقطة والأقمار الصناعية (NASA POWER & DEM)'
-                          : 'Point Elevation & Satellite Telemetry'}
-                      </span>
-                    </div>
-                    <div className="text-[11px] font-mono text-sky-300 mt-0.5 tabular-nums flex flex-wrap items-center gap-1.5">
-                      <span>
-                        {inspectedTelemetry.lat.toFixed(4)}°N, {inspectedTelemetry.lng.toFixed(4)}°E
-                      </span>
-                      <span className="text-slate-500">·</span>
-                      <span className="text-emerald-300">
-                        {isAr
-                          ? inspectedTelemetry.elevation.landformAr
-                          : inspectedTelemetry.elevation.landformEn}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label={isAr ? 'إغلاق بيانات النقطة' : 'Close point telemetry'}
-                    onClick={() => onChangeBottomPopover('none')}
-                    className="p-1 rounded-lg bg-slate-950 hover:bg-rose-600 text-slate-300 hover:text-white cursor-pointer shrink-0"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                  <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                    <div className="text-slate-400 text-[10px]">
-                      {isAr ? 'الارتفاع عن البحر' : 'Elevation'}
-                    </div>
-                    <div className="font-mono font-bold text-emerald-300 mt-0.5 tabular-nums">
-                      {inspectedTelemetry.elevation.elevationMeters} m
-                    </div>
-                  </div>
-                  <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                    <div className="text-slate-400 text-[10px]">
-                      {isAr ? 'الحرارة / المحسوسة' : 'Temp / Feels'}
-                    </div>
-                    <div className="font-mono font-bold text-white mt-0.5 tabular-nums">
-                      {inspectedTelemetry.temperature.airTemp2mC}° /{' '}
-                      {inspectedTelemetry.apparentTempC ?? inspectedTelemetry.temperature.airTemp2mC}
-                      °C
-                    </div>
-                  </div>
-                  <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                    <div className="text-slate-400 text-[10px]">
-                      {isAr ? 'رطوبة التربة 0/7cm' : 'Soil SM'}
-                    </div>
-                    <div className="font-mono font-bold text-sky-300 mt-0.5 tabular-nums">
-                      {inspectedTelemetry.soilMoisture.moisture0cmPct}% /{' '}
-                      {inspectedTelemetry.soilMoisture.moisture7cmPct}%
-                    </div>
-                  </div>
-                  <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                    <div className="text-slate-400 text-[10px]">
-                      {isAr ? 'الرطوبة / الندى' : 'RH% / Dew Pt'}
-                    </div>
-                    <div className="font-mono font-bold text-sky-300 mt-0.5 tabular-nums">
-                      {inspectedTelemetry.humidityPct ?? 54}% · {inspectedTelemetry.dewPointC ?? 11}
-                      °C
-                    </div>
-                  </div>
-                  <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                    <div className="text-slate-400 text-[10px]">
-                      {isAr ? 'الرياح / الهبات' : 'Wind / Gust'}
-                    </div>
-                    <div className="font-mono font-bold text-emerald-200 mt-0.5 tabular-nums">
-                      {inspectedTelemetry.windSpeedKmh} /{' '}
-                      {inspectedTelemetry.windGustKmh ??
-                        Math.round(inspectedTelemetry.windSpeedKmh * 1.45)}{' '}
-                      km/h
-                    </div>
-                  </div>
-                  <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                    <div className="text-slate-400 text-[10px]">
-                      {isAr ? 'الضغط الجوي' : 'Pressure MSL'}
-                    </div>
-                    <div className="font-mono font-bold text-amber-300 mt-0.5 tabular-nums">
-                      {inspectedTelemetry.pressureHpa ?? 1014} hPa
-                    </div>
-                  </div>
-                </div>
-                {inspectedTelemetry.soilGrids && (
-                  <div className="grid grid-cols-3 gap-1.5 text-[11px] pt-1 border-t border-white/10">
-                    <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                      <div className="text-slate-400 text-[10px]">SoilGrids pH</div>
-                      <div className="font-mono font-bold text-emerald-300 mt-0.5 tabular-nums">
-                        {inspectedTelemetry.soilGrids.ph}
-                      </div>
-                    </div>
-                    <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                      <div className="text-slate-400 text-[10px]">
-                        {isAr ? 'المادة العضوية' : 'Organic Matter'}
-                      </div>
-                      <div className="font-mono font-bold text-lime-300 mt-0.5 tabular-nums">
-                        {inspectedTelemetry.soilGrids.organicMatterPct}%
-                      </div>
-                    </div>
-                    <div className="bg-slate-950/90 border border-white/10 rounded-lg p-1.5">
-                      <div className="text-slate-400 text-[10px]">
-                        {isAr ? 'طين / رمل' : 'Clay / Sand'}
-                      </div>
-                      <div className="font-mono font-bold text-amber-200 mt-0.5 tabular-nums">
-                        {inspectedTelemetry.soilGrids.clayPct}% / {inspectedTelemetry.soilGrids.sandPct}%
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div className="text-[10px] text-slate-400 pt-1 border-t border-white/10 truncate">
-                  {isAr ? authoritativeSourceMeta.providerAr : authoritativeSourceMeta.providerEn}{' '}
-                  ·{' '}
-                  {isAr
-                    ? authoritativeSourceMeta.urbanMaskLabelAr
-                    : authoritativeSourceMeta.urbanMaskLabelEn}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Single Compact Draggable Floating Trigger Pill (Only Visible Element When Collapsed) */}
-        <button
-          type="button"
-          data-testid="draggable-bottom-tabs-trigger"
-          onPointerDown={handleBottomTriggerPointerDown}
-          onPointerMove={handleBottomTriggerPointerMove}
-          onPointerUp={handleBottomTriggerPointerUp}
-          title={
-            isDesktopLg
-              ? isAr
-                ? 'اضغط لإظهار أو إخفاء أدوات الخريطة — اسحب لتحريك الزر في أي مكان'
-                : 'Click to toggle map tools dock — Drag to move anywhere'
-              : undefined
-          }
-          className={`pointer-events-auto min-h-[44px] px-3.5 py-1.5 rounded-full border backdrop-blur-xl shadow-2xl flex items-center gap-2 text-xs font-bold transition-colors cursor-grab active:cursor-grabbing select-none ${
-            isBottomTabsPopupOpen
-              ? 'bg-emerald-600 text-white border-emerald-300'
-              : 'bg-slate-950/92 text-slate-100 border-emerald-400/50 hover:bg-slate-900'
-          }`}
-        >
-          <GripVertical className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="whitespace-nowrap">
-            {isAr ? 'أدوات الخريطة' : 'Map Tools'}
-          </span>
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full bg-black/35 text-emerald-300 tabular-nums">
-            {matchedLegendStop.readingFormatted}
-          </span>
-          {isBottomTabsPopupOpen ? (
-            <ChevronDown className="w-4 h-4 shrink-0" />
-          ) : (
-            <ChevronUp className="w-4 h-4 shrink-0" />
-          )}
-        </button>
-      </div>
+      {topRightDrawers && (
+        <div className="pointer-events-auto absolute top-16 right-3 z-40 max-w-[min(calc(100vw-20px),420px)] flex flex-col items-end gap-2">
+          {topRightDrawers}
+        </div>
+      )}
     </>
   );
 };

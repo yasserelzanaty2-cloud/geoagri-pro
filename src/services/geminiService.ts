@@ -459,7 +459,7 @@ const GEMINI_FUNCTION_DECLARATIONS = [
 /**
  * Call Google Gemini API directly from client side
  * Uses official currently supported models in priority order:
- * Gemini 4 Hydrogen -> Gemini 3.8 Flash -> Gemini 2.5 Flash -> Gemini 1.5 Flash
+ * Gemini 2.5 Flash -> Gemini 2.0 Flash -> Gemini 1.5 Flash -> Gemini 2.5 Pro -> Gemini 1.5 Pro
  */
 export async function callGeminiDirect(
   req: GeminiAdvisorRequest
@@ -634,7 +634,7 @@ ${JSON.stringify(req.siteInventory, null, 2)}`;
 }
 
 /**
- * Direct Gemini audio transcription using Gemini 4 Hydrogen / 3.8 Flash / 2.5 Flash
+ * Direct Gemini audio transcription using Gemini 2.5 Flash / 2.0 Flash / 1.5 Flash
  */
 export async function transcribeAudioDirect(
   base64Audio: string,
@@ -645,9 +645,8 @@ export async function transcribeAudioDirect(
   if (!apiKey || !base64Audio) return null;
 
   const models = [
-    'gemini-4-hydrogen',
-    'gemini-3.8-flash',
     'gemini-2.5-flash',
+    'gemini-2.0-flash',
     'gemini-1.5-flash',
   ];
 
