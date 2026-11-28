@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <!-- Homepage / Main 3D Satellite Map Stage -->
+  <url>
+    <loc>https://yasserelzanaty2-cloud.github.io/geoagri-pro/</loc>
+    <lastmod>2026-11-21T18:00:00+02:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?lang=ar" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?lang=en" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/" />
+  </url>
+
+  <!-- 3D Agricultural Atlas Section -->
+  <url>
+    <loc>https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=atlas</loc>
+    <lastmod>2026-11-21T18:00:00+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=atlas&amp;lang=ar" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=atlas&amp;lang=en" />
+  </url>
+
+  <!-- Spectral Remote Sensing Indices Section (NDVI, NDWI, SAVI, EVI, LST) -->
+  <url>
+    <loc>https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=indices</loc>
+    <lastmod>2026-11-21T18:00:00+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=indices&amp;lang=ar" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=indices&amp;lang=en" />
+  </url>
+
+  <!-- Micro-Climate, Weather & Irrigation Modeling -->
+  <url>
+    <loc>https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=weather</loc>
+    <lastmod>2026-11-21T18:00:00+02:00</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=weather&amp;lang=ar" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=weather&amp;lang=en" />
+  </url>
+
+  <!-- Strategic Crop Lifecycle, NPK Fertilizer & Rotation Management -->
+  <url>
+    <loc>https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=crops</loc>
+    <lastmod>2026-11-21T18:00:00+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=crops&amp;lang=ar" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=crops&amp;lang=en" />
+  </url>
+
+  <!-- AI Agronomist & Advisory Engine -->
+  <url>
+    <loc>https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=advisor</loc>
+    <lastmod>2026-11-21T18:00:00+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=advisor&amp;lang=ar" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=advisor&amp;lang=en" />
+  </url>
+</urlset>

@@ -1,0 +1,30 @@
+# GeoAgri Pro
+
+> GeoAgri Pro is an advanced, mobile-first precision agriculture and geospatial intelligence platform powered by multi-spectral satellite remote sensing, high-resolution global atmospheric models, real-time GPS field surveying, and an AI-driven agricultural advisory system.
+
+- Platform URL: https://yasserelzanaty2-cloud.github.io/geoagri-pro/
+- Primary Language: Arabic (ar) & English (en)
+- Target Region: Egypt, Middle East, North Africa, and global agricultural zones.
+- Hosting: Static Web Application on GitHub Pages with Cloud Firestore & Cloud SQL integration.
+
+## Key Capabilities
+
+- **3D Satellite Atlas & Earth Stage**: High-performance WebGL 3D globe visualization powered by CesiumJS, integrating Esri World Imagery (Wayback 2014–2026 archives), NASA GIBS, and Mapbox satellite basemaps.
+- **Multi-Spectral Vegetation Indices**: Real-time analytical computation of NDVI (Normalized Difference Vegetation Index), NDWI (Normalized Difference Water Index), SAVI (Soil-Adjusted Vegetation Index), EVI (Enhanced Vegetation Index), NDMI (Normalized Difference Moisture Index), and LST (Land Surface Temperature).
+- **Sub-Zone Segmentation**: Automatic triangulation and subdivision of delineated farms into Zones A, B, and C with micro-pixel cellular sampling, soil moisture depth profiles (0–7 cm & 7–28 cm), and electrical conductivity (EC).
+- **Field GPS Boundary Surveyor**: Live GPS geolocation positioning enabling farmers to walk physical field borders and record precision coordinates directly on the satellite globe, with manual DMS/decimal coordinate input.
+- **Predictive Agrometeorology**: Coupled weather forecasting combining NASA POWER climatology and Open-Meteo hourly agrometeorological feeds (solar radiation, wind vector fields, frost warnings, precipitation probability, evapotranspiration ET0).
+- **Strategic Crop Lifecycle & NPK Calculator**: GDD (Growing Degree Day) stage tracking across 30+ regional crops (Wheat, Maize, Cotton, Alfalfa, Citrus, Date Palms, Olives, Tomatoes, etc.), 4-week NPK nutrient schedules, and pathological crop rotation risk mitigation.
+- **Multi-Device Cloud Synchronization**: Zero-latency additive farm synchronization across desktop and mobile browsers via Google Cloud Firestore, backed by local offline storage.
+
+## Core Modules & URLs
+
+- [3D Agricultural Atlas](https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=atlas): Interactive satellite exploration, farm boundary delineation, and 3D terrain inspection.
+- [Spectral Indices](https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=indices): Farm health diagnostic radar, NDVI vegetation density, water stress, and thermal zoning.
+- [Weather & Irrigation](https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=weather): 14-day agrometeorological forecast, localized rain clouds, wind streamlines, and irrigation scheduling.
+- [Crops & Rotations](https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=crops): Multi-year crop rotation matrices, fertilizer dosage calculators, and lifecycle milestones.
+- [AI Agronomist](https://yasserelzanaty2-cloud.github.io/geoagri-pro/?tab=advisor): Context-aware agronomic decision support engine answering soil, pest, disease, and yield optimization queries.
+
+## Detailed Documentation
+
+- [Full LLM Specification & Scientific Formulas](https://yasserelzanaty2-cloud.github.io/geoagri-pro/llms-full.txt): In-depth spectral band equations, soil texture hydraulic properties, and system architecture.

@@ -1,0 +1,35 @@
+# Robots.txt for GeoAgri Pro (https://yasserelzanaty2-cloud.github.io/geoagri-pro/)
+User-agent: *
+Allow: /
+Allow: /geoagri-pro/
+Allow: /assets/
+Allow: /cesiumStatic/
+Disallow: /api/
+
+# Explicitly allow AI crawlers and search engine bots
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# Sitemap Location
+Sitemap: https://yasserelzanaty2-cloud.github.io/geoagri-pro/sitemap.xml

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#022c22" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="satGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded Base Badge -->
+  <rect width="64" height="64" rx="16" fill="url(#bgGrad)" />
+  <rect width="60" height="60" x="2" y="2" rx="14" fill="none" stroke="#10b981" stroke-opacity="0.3" stroke-width="1.5" />
+
+  <!-- Agricultural Farm Field Furrows / Grid -->
+  <path d="M12 48 Q 32 38 52 48 M16 53 Q 32 45 48 53" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" opacity="0.6" />
+
+  <!-- Central Precision Leaf / Sprout -->
+  <path d="M32 20 C24 24 22 34 32 44 C42 34 40 24 32 20 Z" fill="url(#leafGrad)" />
+  <path d="M32 24 L32 42" stroke="#064e3b" stroke-width="1.5" stroke-linecap="round" />
+
+  <!-- Orbit Path -->
+  <ellipse cx="32" cy="30" rx="22" ry="10" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.75" transform="rotate(-25 32 30)" />
+
+  <!-- Satellite Icon -->
+  <g transform="translate(45, 16) rotate(20) scale(0.65)">
+    <!-- Satellite Body -->
+    <rect x="-6" y="-6" width="12" height="12" rx="2" fill="url(#satGrad)" stroke="#ffffff" stroke-width="1" />
+    <!-- Solar Panels -->
+    <rect x="-18" y="-4" width="10" height="8" rx="1" fill="#0284c7" stroke="#38bdf8" stroke-width="1" />
+    <rect x="8" y="-4" width="10" height="8" rx="1" fill="#0284c7" stroke="#38bdf8" stroke-width="1" />
+    <!-- Signal Beam Dot -->
+    <circle cx="0" cy="0" r="2" fill="#fef08a" />
+  </g>
+</svg>
